@@ -6,7 +6,7 @@ from kafka import KafkaConsumer, KafkaProducer
 from dotenv import load_dotenv
 from openai import OpenAI
 from models import Message
-from models import AnalyzedEmail
+from models import AnalyzedMessage
 import json
 import os
 import logging
@@ -15,8 +15,9 @@ from openai import OpenAI
 
 # Load env vars
 load_dotenv()
-KAFKA_INPUT_TOPIC=os.getenv("KAFKA_INPUT_TOPIC") 
+
 KAFKA_BROKER=os.getenv("KAFKA_BROKER")
+KAFKA_INPUT_TOPIC=os.getenv("KAFKA_INPUT_TOPIC") 
 KAFKA_OUTPUT_TOPIC=os.getenv("KAFKA_OUTPUT_TOPIC")
 KAFKA_REVIEW_TOPIC=os.getenv("KAFKA_REVIEW_TOPIC")
 MODEL_NAME=os.getenv("MODEL_NAME")
@@ -24,8 +25,8 @@ API_KEY=os.getenv("API_KEY")
 INFERENCE_SERVER_URL=os.getenv("INFERENCE_SERVER_URL")
 
 client = OpenAI(
-    api_key=os.getenv("API_KEY"),
-    base_url=os.getenv("INFERENCE_SERVER_URL")
+    api_key=API_KEY,
+    base_url=INFERENCE_SERVER_URL
     )
 
 
@@ -49,7 +50,7 @@ class MessageProcessor():
             KAFKA_INPUT_TOPIC,
             bootstrap_servers=KAFKA_BROKER,
             value_deserializer=lambda x: json.loads(x.decode('utf-8')),
-            auto_offset_reset='earliest',
+            auto_offset_reset='latest',
             enable_auto_commit=True
         )
 
@@ -68,12 +69,12 @@ class MessageProcessor():
             # -------------------------------------------------------
 
             completion = client.beta.chat.completions.parse(
-                model=os.getenv("MODEL_NAME"),
+                model=MODEL_NAME,
                 messages=[
                     {"role": "system", "content": "Extract the customer support email information."},
                     {"role": "user", "content": message.content},
                 ],
-                response_format=AnalyzedEmail,
+                response_format=AnalyzedMessage,
             )
             logger.info("chat completions")
             emailanalysis = completion.choices[0].message.parsed
@@ -88,7 +89,7 @@ class MessageProcessor():
             logger.info(f"Escalate: {emailanalysis.escalate}")
             logger.info("-------")
 
-            message.comment=emailanalysis
+            message.structured=emailanalysis
             # -------------------------------------------------------
             # LLM Magic Happens
             # -------------------------------------------------------
@@ -132,7 +133,10 @@ class MessageProcessor():
         except Exception as e:
             logger.error(f"Error processing message: {str(e)}")
             error_message = Message(
-                # to be filled in
+                id="error",
+                filename="error.txt",
+                content=str(e),
+                error=[str(e)]
             )
             self.to_review(error_message)
         finally:

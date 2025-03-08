@@ -4,11 +4,13 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional, Dict, Any
 
-class AnalyzedEmail(BaseModel):
+class AnalyzedMessage(BaseModel):
     reason: str
     sentiment: Optional[str]
-    customer_name: Optional[str]
+    company_name: Optional[str]
+    customer_name: Optional[str]    
     email_address: Optional[str]
+    phone: Optional[str]
     product_name: Optional[str]
     escalate: bool
 
@@ -18,7 +20,6 @@ class Message(BaseModel):
     content: str
     metadata: Dict[str, Any] = Field(default_factory=dict)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
-    comment: Optional[AnalyzedEmail] = None
-    error: Optional[str] = None
-
-
+    structured: Optional[AnalyzedMessage] = None
+    comment: Optional[str] = None
+    error: list = Field(default_factory=list)

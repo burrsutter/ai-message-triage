@@ -58,10 +58,10 @@ INFERENCE_SERVER_URL=<llm-server-url>
 - `id`: Unique message identifier
 - `content`: Raw message content
 - `timestamp`: Message creation time
-- `comment`: Analysis results (AnalyzedEmail)
+- `comment`: Analysis results (AnalyzedMessage)
 - `error`: Error information (if any)
 
-### AnalyzedEmail
+### AnalyzedMessage
 - `reason`: Primary reason for the email
 - `sentiment`: Detected sentiment
 - `customer_name`: Extracted customer name
@@ -85,15 +85,7 @@ List of Topics:
 /opt/homebrew/bin/kafka-topics --bootstrap-server localhost:9092 --list 
 ```
 
-Create the Topics if needed:
-
-```
-/opt/homebrew/bin/kafka-topics --bootstrap-server localhost:9092 --create --topic input --partitions 1 --replication-factor 1
-/opt/homebrew/bin/kafka-topics --bootstrap-server localhost:9092 --create --topic output --partitions 1 --replication-factor 1
-/opt/homebrew/bin/kafka-topics --bootstrap-server localhost:9092 --create --topic review --partitions 1 --replication-factor 1
-```
-
-There is also a reset.sh script that can help clear out and recreate the topics.
+Delete & Create the Topics if needed:
 
 ```
 chmod +x reset.sh
@@ -129,10 +121,16 @@ Run the producer to send messages:
    python kafka-producer-pydantic.py
    ```
 
+## End to End
+
 Intake 
 
 ```bash
 python -m intake.file-intake
+```
+
+```bash
+ kcat -C -b localhost:9092 -t intake
 ```
 
 Structured
@@ -141,13 +139,52 @@ Structured
 python -m structure.message-structure
 ```
 
-
 ```bash
-kcat -C -b localhost:9092 -t intake
+kcat -C -b localhost:9092 -t structured
 ```
 
+Guardian
+
+```bash
+python -m guardian.message-guardian
+```
+
+```bash
+kcat -C -b localhost:9092 -t cleared
+```
+
+Customer
+
+```bash
+python -m customer.customer-lookup
+```
+
+Drag and drop a file to "intake" directory
 
 
+
+## Debugging
+
+What models are available at the endpoint:
+
+```
+curl $INFERENCE_SERVER_URL/models \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json"
+```
+
+Inference check
+
+```
+curl -sS $INFERENCE_SERVER_URL/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $API_KEY" \
+  -d "{
+     \"model\": \"$MODEL_NAME\",
+     \"messages\": [{\"role\": \"user\", \"content\": \"Who is Burr Sutter?\"}],
+     \"temperature\": 0.0
+   }" | jq -r '.choices[0].message.content'
+```
 
 ## Error Handling
 
@@ -163,14 +200,6 @@ The application uses Python's logging module with:
 - Log level
 - Detailed message information
 - Processing status updates
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
 
 ## License
 

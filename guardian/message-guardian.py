@@ -6,7 +6,7 @@ from kafka import KafkaConsumer, KafkaProducer
 from dotenv import load_dotenv
 from openai import OpenAI
 from models import Message
-from models import AnalyzedEmail
+from models import AnalyzedMessage
 import json
 import os
 import logging
@@ -15,17 +15,18 @@ from openai import OpenAI
 
 # Load env vars
 load_dotenv()
-KAFKA_INPUT_TOPIC=os.getenv("KAFKA_INPUT_TOPIC") 
 KAFKA_BROKER=os.getenv("KAFKA_BROKER")
-KAFKA_OUTPUT_TOPIC=os.getenv("KAFKA_OUTPUT_TOPIC")
+KAFKA_INPUT_TOPIC=os.getenv("KAFKA_GUARDIAN_INPUT_TOPIC")
+KAFKA_OUTPUT_TOPIC=os.getenv("KAFKA_GUARDIAN_OUTPUT_TOPIC")
 KAFKA_REVIEW_TOPIC=os.getenv("KAFKA_REVIEW_TOPIC")
+
 MODEL_NAME=os.getenv("GUARDIAN_MODEL_NAME")
-API_KEY=os.getenv("GUARDIANAPI_KEY")
+API_KEY=os.getenv("GUARDIAN_API_KEY")
 INFERENCE_SERVER_URL=os.getenv("GUARDIAN_SERVER_URL")
 
 client = OpenAI(
-    api_key=os.getenv("API_KEY"),
-    base_url=os.getenv("INFERENCE_SERVER_URL")
+    api_key=API_KEY,
+    base_url=INFERENCE_SERVER_URL
     )
 
 
@@ -36,6 +37,13 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
+
+
+logger.info(f"Kafka bootstrap servers: {KAFKA_BROKER}")
+logger.info(f"Kafka input topic: {KAFKA_INPUT_TOPIC}")
+logger.info(f"Kafka output topic: {KAFKA_OUTPUT_TOPIC}")
+logger.info(f"Inference Server: {INFERENCE_SERVER_URL}")
+logger.info(f"Model: {MODEL_NAME}")
 
 llmclient = OpenAI(
     api_key=API_KEY,
@@ -49,7 +57,7 @@ class MessageProcessor():
             KAFKA_INPUT_TOPIC,
             bootstrap_servers=KAFKA_BROKER,
             value_deserializer=lambda x: json.loads(x.decode('utf-8')),
-            auto_offset_reset='earliest',
+            auto_offset_reset='latest',
             enable_auto_commit=True
         )
 
@@ -66,29 +74,60 @@ class MessageProcessor():
             # -------------------------------------------------------
             # LLM Magic Happens
             # -------------------------------------------------------
-
-            completion = client.beta.chat.completions.parse(
-                model=os.getenv("MODEL_NAME"),
-                messages=[
-                    {"role": "system", "content": "Extract the customer support email information."},
-                    {"role": "user", "content": message.content},
-                ],
-                response_format=AnalyzedEmail,
+            system_test="violence"
+            completion = client.chat.completions.create(
+                model=MODEL_NAME, # granite3-guardian:8b-fp16
+                    messages=[
+                    { "role": "system","content": system_test },
+                    { "role": "user", "content": message.content, },
+                    ],
             )
-            logger.info("chat completions")
-            emailanalysis = completion.choices[0].message.parsed
+            response = completion.choices[0].message.content
+            logger.info(f"violence {response}")
+            if (response == "Yes"):                 
+                message.error.append(f"guardian:{system_test}")
 
-            logger.info("-------")
-            # logger.info(emailanalysis)            
-            logger.info(f"Reason:   {emailanalysis.reason}")
-            logger.info(f"Customer: {emailanalysis.customer_name}")
-            logger.info(f"Email:    {emailanalysis.email_address}")
-            logger.info(f"Product:  {emailanalysis.product_name}")
-            logger.info(f"Sentiment:{emailanalysis.sentiment}")
-            logger.info(f"Escalate: {emailanalysis.escalate}")
-            logger.info("-------")
+            system_test="social_bias"
+            completion = client.chat.completions.create(
+                model=MODEL_NAME, 
+                    messages=[
+                    { "role": "system","content": system_test },
+                    { "role": "user", "content": message.content, },
+                    ],
+            )
+            response = completion.choices[0].message.content
+            logger.info(f"social_bias {response}")
+            if (response == "Yes"):                 
+                message.error.append(f"guardian:{system_test}")
 
-            message.comment=emailanalysis
+
+            # system_test="jailbreak"
+            # completion = client.chat.completions.create(
+            #     model=MODEL_NAME, 
+            #         messages=[
+            #         { "role": "system","content": system_test },
+            #         { "role": "user", "content": message.content, },
+            #         ],
+            # )
+            # response = completion.choices[0].message.content
+            # logger.info(f"jailbreak {response}")
+            # if (response == "Yes"):                 
+            #     message.error.append(f"guardian:{system_test}")
+
+            system_test="profanity"
+            completion = client.chat.completions.create(
+                model=MODEL_NAME, 
+                    messages=[
+                    { "role": "system","content": system_test },
+                    { "role": "user", "content": message.content, },
+                    ],
+            )
+            response = completion.choices[0].message.content
+            logger.info(f"profanity {response}")
+            if (response == "Yes"):                 
+                message.error.append(f"guardian:{system_test}")
+
+
             # -------------------------------------------------------
             # LLM Magic Happens
             # -------------------------------------------------------
@@ -96,7 +135,7 @@ class MessageProcessor():
             return message
         except Exception as e:
             # Need to say something about what when wrong
-            logger.error(f"BAD Thing: {e}")
+            logger.error(f"Exception in LLM Processing: {e}")
             return message
     
     def to_review(self, message: Message):
@@ -117,22 +156,35 @@ class MessageProcessor():
                 logger.info(f"Before Processing message: {type(kafka_message)}")                
                 # Extract the JSON payload from the Kafka message
                 message_data = kafka_message.value  # `value` contains the deserialized JSON payload
+                logger.info(f"Kafka Message: {message_data}")
+                # Convert Kafka JSON data into a Pydantic Message object
+                
+                try:
+                    message = Message(**message_data)
+                except Exception as e:
+                    logger.error(f"Failed to create Message object: {str(e)}")
+                    logger.error(f"Message data that caused error: {message_data}")
+                    raise
 
-                # Convert JSON data into a Pydantic Message object
-                message = Message(**message_data)
-
-                # Process the message
+                logger.info(f"Pydantic Message: {message}")
+                # Process the message via LLM calls
                 processed_message = self.process(message)
                 logger.info(f"After Processing message: {processed_message}")
-
-                # Send the message to output
-                self.producer.send(KAFKA_OUTPUT_TOPIC,processed_message)
+                
+                # If there are errors attached, route to the review topic/queue
+                if len(processed_message.error) > 0:
+                    self.to_review(processed_message)
+                else:                
+                    self.producer.send(KAFKA_OUTPUT_TOPIC,processed_message)
 
 
         except Exception as e:
             logger.error(f"Error processing message: {str(e)}")
             error_message = Message(
-                # to be filled in
+                id="error",
+                filename="error.txt",
+                content="Error processing message", 
+                error=["guardian"]
             )
             self.to_review(error_message)
         finally:
