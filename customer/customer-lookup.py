@@ -36,7 +36,7 @@ DBPORT=os.getenv("CUSTOMER_DBPORT")
 # Set up logging configuration
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
+    format="%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
@@ -203,17 +203,21 @@ class MessageProcessor():
                     logger.info(f"Contact email address: {contact_email_address}")
 
                     the_found_customer = find_the_customer_by_contact_email(contact_email_address)
-                    logger.info(f"the_customer type: {type(the_found_customer)}")
-                    # Need to add some validation here, if there is no match in the database, this is a prospect, not a customer
-                    # update the input message with the found database data
-                    message.structured.company_id=the_found_customer.customer_id
-                    message.structured.company_name=the_found_customer.company_name
-                    message.structured.country=the_found_customer.country
-                    message.structured.phone=the_found_customer.phone
+                    if the_found_customer:
+                        logger.info(f"the_customer type: {type(the_found_customer)}")
+                        # update the input message with the found database data
+                        message.structured.company_id=the_found_customer.customer_id
+                        message.structured.company_name=the_found_customer.company_name
+                        message.structured.country=the_found_customer.country
+                        message.structured.phone=the_found_customer.phone
 
-                    logger.info(f"JSON: {message.model_dump_json()} ")
+                        logger.info(f"JSON: {message.model_dump_json()} ")
 
-                    self.producer.send(KAFKA_OUTPUT_TOPIC,message)
+                        self.producer.send(KAFKA_OUTPUT_TOPIC,message.model_dump())
+                    else: # if there is no match in the database, this is a prospect, not a customer
+                        logger.info(f"No contact with email address: {contact_email_address}")
+                        message.error = message.error.append(f"no contact: {contact_email_address}")
+                        self.to_review(message)
 
                 except json.JSONDecodeError as e:
                     logger.error(f"JSON decoding failed: {e}")

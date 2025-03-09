@@ -5,8 +5,12 @@
 from kafka import KafkaConsumer, KafkaProducer
 from dotenv import load_dotenv
 from openai import OpenAI
+import sys
+import os
+# Add the parent directory to the Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from models import OuterWrapper
-from models import StructuredMessage
+from models import StructuredObject
 import json
 import os
 import logging
@@ -74,7 +78,7 @@ class MessageProcessor():
                     {"role": "system", "content": "Extract the customer support email information."},
                     {"role": "user", "content": message.content},
                 ],
-                response_format=StructuredMessage,
+                response_format=StructuredObject,
             )
             logger.info("chat completions")
             emailanalysis = completion.choices[0].message.parsed
@@ -100,7 +104,7 @@ class MessageProcessor():
             logger.error(f"BAD Thing: {e}")
             return message
     
-    def to_review(self, message: InboundMessage):
+    def to_review(self, message: OuterWrapper):
         try:
             self.producer.send(KAFKA_REVIEW_TOPIC, message.model_dump())
             self.producer.flush()
@@ -132,7 +136,7 @@ class MessageProcessor():
 
         except Exception as e:
             logger.error(f"Error processing message: {str(e)}")
-            error_message = Message(
+            error_message = OuterWrapper(
                 id="error",
                 filename="error.txt",
                 content=str(e),

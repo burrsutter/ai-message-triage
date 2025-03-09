@@ -1,4 +1,8 @@
 from kafka import KafkaConsumer
+import sys
+import os
+# Add the parent directory to the Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from models import OuterWrapper
 import os
 from dotenv import load_dotenv
