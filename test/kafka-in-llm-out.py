@@ -5,8 +5,8 @@
 from kafka import KafkaConsumer, KafkaProducer
 from dotenv import load_dotenv
 from openai import OpenAI
-from models import Message
-from models import AnalyzedMessage
+from models import OuterWrapper
+from models import StructuredMessage
 import json
 import os
 import logging
@@ -60,7 +60,7 @@ class MessageProcessor():
         )
 
     # Takes the input, modifies, returns it back    
-    def process(self, message:Message) -> Message:
+    def process(self, message:OuterWrapper) -> OuterWrapper:
         try:
             logger.info("LLM Processing: " + message.content)
 
@@ -74,7 +74,7 @@ class MessageProcessor():
                     {"role": "system", "content": "Extract the customer support email information."},
                     {"role": "user", "content": message.content},
                 ],
-                response_format=AnalyzedMessage,
+                response_format=StructuredMessage,
             )
             logger.info("chat completions")
             emailanalysis = completion.choices[0].message.parsed
@@ -100,7 +100,7 @@ class MessageProcessor():
             logger.error(f"BAD Thing: {e}")
             return message
     
-    def to_review(self, message: Message):
+    def to_review(self, message: InboundMessage):
         try:
             self.producer.send(KAFKA_REVIEW_TOPIC, message.model_dump())
             self.producer.flush()
@@ -120,7 +120,7 @@ class MessageProcessor():
                 message_data = kafka_message.value  # `value` contains the deserialized JSON payload
 
                 # Convert JSON data into a Pydantic Message object
-                message = Message(**message_data)
+                message = OuterWrapper(**message_data)
 
                 # Process the message
                 processed_message = self.process(message)

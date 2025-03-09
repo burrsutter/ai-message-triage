@@ -1,21 +1,21 @@
 # --------------------------------------------------------------
-# Using a LLM for a simple sql lookup is totally overkill
+# Grabs additional data from RDBMS
 # --------------------------------------------------------------
 
-
+from math import log
 from kafka import KafkaConsumer, KafkaProducer
 from dotenv import load_dotenv
-from openai import OpenAI
-from models import Message
-from models import AnalyzedMessage
+
+from models import OuterWrapper
+from models import StructuredObject
 import json
 import os
 import logging
 import psycopg2
 from psycopg2 import sql
-from openai import OpenAI
-from pydantic import BaseModel
-from typing import List
+
+from pydantic import BaseModel, InstanceOf
+
 
 # Load env vars
 load_dotenv()
@@ -24,9 +24,6 @@ KAFKA_BROKER=os.getenv("KAFKA_BROKER")
 KAFKA_INPUT_TOPIC=os.getenv("KAFKA_CUSTOMER_INPUT_TOPIC") 
 KAFKA_OUTPUT_TOPIC=os.getenv("KAFKA_CUSTOMER_OUTPUT_TOPIC")
 KAFKA_REVIEW_TOPIC=os.getenv("KAFKA_REVIEW_TOPIC")
-MODEL_NAME=os.getenv("CUSTOMER_MODEL_NAME")
-API_KEY=os.getenv("CUSTOMER_API_KEY")
-INFERENCE_SERVER_URL=os.getenv("CUSTOMER_SERVER_URL")
 
 DBNAME=os.getenv("CUSTOMER_DBNAME")
 DBUSER=os.getenv("CUSTOMER_DBUSER")
@@ -34,11 +31,6 @@ DBPASSWORD=os.getenv("CUSTOMER_DBPASSWORD")
 DBHOST=os.getenv("CUSTOMER_DBHOST")
 DBPORT=os.getenv("CUSTOMER_DBPORT")
 
-
-client = OpenAI(
-    api_key=API_KEY,
-    base_url=INFERENCE_SERVER_URL
-    )
 
 
 # Set up logging configuration
@@ -52,16 +44,8 @@ logger = logging.getLogger(__name__)
 logger.info(f"Kafka bootstrap servers: {KAFKA_BROKER}")
 logger.info(f"Kafka input topic: {KAFKA_INPUT_TOPIC}")
 logger.info(f"Kafka output topic: {KAFKA_OUTPUT_TOPIC}")
-logger.info(f"Inference Server: {INFERENCE_SERVER_URL}")
-logger.info(f"Model: {MODEL_NAME}")
 logger.info(f"Database Host+Port: {DBHOST}:{DBPORT}")
 logger.info(f"Database: {DBNAME}")
-
-
-llmclient = OpenAI(
-    api_key=API_KEY,
-    base_url=INFERENCE_SERVER_URL
-    )
 
 
 class CustomerDetails(BaseModel):
@@ -72,18 +56,30 @@ class CustomerDetails(BaseModel):
     country: str
     phone: str
 
-class CustomerList(BaseModel):
-    customers: List[CustomerDetails]    
+# -------------------------------------------------------
+# Debugging function
+# -------------------------------------------------------
+def log_dict_elements(d, prefix=""):
+    """
+    Recursively logs each key-value pair in a dictionary.
+    
+    :param d: Dictionary to log.
+    :param prefix: String prefix for nested keys.
+    """
+    for key, value in d.items():
+        full_key = f"{prefix}.{key}" if prefix else key
+        
+        if isinstance(value, dict):  # Recursively log nested dictionaries
+            logging.info(f"{full_key}: [Nested Dictionary]")
+            log_dict_elements(value, full_key)
+        else:
+            logging.info(f"{full_key}: {value}")
+    
 
-llm_messages = [
-    {"role": "system", "content": "You are a helpful assistant that must the contact_search tool"}
-]
-
-# --------------------------------------------------------------
-# Tool Execution Logic
-# --------------------------------------------------------------
-
-def find_the_customer_by_contact_email(contact_email) -> CustomerList:
+# -------------------------------------------------------
+# The meat and potatoes
+# -------------------------------------------------------
+def find_the_customer_by_contact_email(contact_email) -> CustomerDetails:
     logger.info(f"find_the_customer_by_contact_email: {contact_email}")
 
     connection = None
@@ -109,32 +105,27 @@ def find_the_customer_by_contact_email(contact_email) -> CustomerList:
         query = sql.SQL("""
         SELECT customer_id, company_name, contact_name, contact_email, country, phone
         FROM customers
-        WHERE contact_email = '%s'
+        WHERE contact_email = %s
         """)
 
-        cursor.execute(query, contact_email)
+        cursor.execute(query, (contact_email,))
         logger.info("cursor.execute")
 
         # Fetch all customer records
-        customers = cursor.fetchall()
-        logger.info("cursor.fetchall")
+        customer = cursor.fetchone()
+        logger.info("cursor.fetchone")
 
-        if customers:
-            customers_list = [
-                CustomerDetails(
-                    customer_id=customer[0],
-                    company_name=customer[1],
-                    contact_name=customer[2],
-                    contact_email=customer[3],
-                    country=customer[4],
-                    phone=customer[5]
-                )
-                for customer in customers
-            ]
-            logger.info("Database query found customer(s):")
-            for customer in customers_list:                
-                logger.info("Customer ID: %s, Company Name: %s", customer.customer_id, customer.company_name)
-            return customers_list
+        if customer:            
+            found_customer = CustomerDetails(
+                customer_id=customer[0],
+                company_name=customer[1],
+                contact_name=customer[2],
+                contact_email=customer[3],
+                country=customer[4],
+                phone=customer[5]
+            )            
+            logger.info("Database Customer: %s", found_customer.model_dump_json())
+            return found_customer
         else:
             return None
 
@@ -150,28 +141,6 @@ def find_the_customer_by_contact_email(contact_email) -> CustomerList:
             connection.close()
 
 
-# --------------------------------------------------------------
-# Tool Definition (OpenAI)
-# --------------------------------------------------------------
-
-tools = [
-    {
-        "type" : "function",
-        "function" : {
-            "name": "find_the_customer_by_contact_email",
-            "description": "Find and return the customer details by contact email address",
-            "parameters": {
-                "type": "object",
-                "properties" : {
-                    "contact_email": {"type": "string", "description": "contact email address"},
-                },
-                "required": ["contact_email"],
-                "additionalProperties": False,
-            },
-            "strict": True,
-        },
-    }
-]
 
 
 class MessageProcessor():
@@ -179,86 +148,21 @@ class MessageProcessor():
         self.consumer = KafkaConsumer(
             KAFKA_INPUT_TOPIC,
             bootstrap_servers=KAFKA_BROKER,
-            value_deserializer=lambda x: json.loads(x.decode('utf-8')),
-            auto_offset_reset='earliest',
-            # auto_offset_reset='latest',
-            enable_auto_commit=True
+            value_deserializer=lambda x: json.loads(x.decode('utf-8')),            
+            # auto_offset_reset='earliest', # debugging
+            auto_offset_reset='latest',
+            group_id='customer_lookup',
+            enable_auto_commit=False
         )
 
         self.producer = KafkaProducer(
             bootstrap_servers=KAFKA_BROKER,
-            value_serializer=lambda x: json.dumps(x, default=str).encode('utf-8')
+            value_serializer=lambda x: json.dumps(x, default=str).encode('utf-8'),
+            acks="all",  # Wait for all replicas to acknowledge
+            retries=3,   # Retry a few times if sending fails
         )
 
-    # Takes the input, modifies, returns it back    
-    def process(self, email_address) -> CustomerList:
-        try:
-            logger.info("LLM Processing: " + email_address)
-
-            # -------------------------------------------------------
-            # LLM Magic Happens
-            # -------------------------------------------------------
-            llm_messages.append(
-                {"role": "user", "content": "Contact email " + email_address}
-            )
-            completion = client.chat.completions.create(
-                model=MODEL_NAME,    
-                messages=llm_messages,
-                tools=tools, 
-                # tool_choice="required", # works with openai.com and ollama, not vLLM
-                tool_choice="auto",
-                temperature=0.1
-            )
-
-            completion.model_dump()
-
-            # the callback
-
-            def call_function(name, args):
-                if name == "find_the_customer_by_contact_email":
-                    logger.info("calling find_the_customer_by_contact_email")
-                    return find_the_customer_by_contact_email(**args)
-
-
-            # look inside the result for tool calls and make those tool calls
-
-            if completion.choices[0].message.tool_calls:
-                for tool_call in completion.choices[0].message.tool_calls:
-                    name = tool_call.function.name
-                    args = json.loads(tool_call.function.arguments)
-                    # append the chatcompletion to the messages list
-                    llm_messages.append(completion.choices[0].message)
-                    result = call_function(name, args)  
-                    # append the results of the tool call
-                    llm_messages.append(
-                        {"role": "tool", "tool_call_id": tool_call.id, "content": json.dumps(result)}
-                    )
-                    # log_messages(messages)
-
-
-            # call the model again with the results of the tool/function call added
-            completion_2 = client.beta.chat.completions.parse(
-                model=MODEL_NAME,
-                messages=llm_messages,
-                tools=tools,
-                response_format=CustomerList
-            )
-
-            final_response = completion_2.choices[0].message.parsed
-
-
-
-            # -------------------------------------------------------
-            # LLM Magic Happens
-            # -------------------------------------------------------
-
-            return final_response
-        except Exception as e:
-            # Need to say something about what when wrong
-            logger.error(f"BAD Thing: {e}")
-            return final_response
-    
-    def to_review(self, message: Message):
+    def to_review(self, message: OuterWrapper):
         try:
             self.producer.send(KAFKA_REVIEW_TOPIC, message.model_dump())
             self.producer.flush()
@@ -273,28 +177,54 @@ class MessageProcessor():
         try:
             logger.info("Starting message processor...")
             for kafka_message in self.consumer:
-                logger.info(f"Before Processing message: {type(kafka_message)}")                
-                # Extract the JSON payload from the Kafka message
-                message_data = kafka_message.value  # `value` contains the deserialized JSON payload
-                logger.info(f"Kafka Message: {message_data}")
-                
-                # hard coding for now to see if the tool invocation works
-                contact_email_address="liuwong@example.com"
+                logger.info(f"Before Processing message: {type(kafka_message)}")
+                # Extract the str dict payload from the Kafka message
+                logger.info(f"Kafka message type: {type(kafka_message.value)}") # str
+                logger.info(f"Kafka message value: {kafka_message.value}")
+                if not kafka_message.value:
+                    logger.error("Received an empty Kafka message!")
+                    continue  # Skip processing this message
 
-                # Process the message via LLM calls
-                processed_message = self.process(contact_email_address)
-                logger.info(f"After Processing message: {processed_message}")
-                
-                # If there are errors attached, route to the review topic/queue
-                if len(processed_message.error) > 0:
-                    self.to_review(processed_message)
-                else:                
-                    self.producer.send(KAFKA_OUTPUT_TOPIC,processed_message)
+                try:
+                    message_data = kafka_message.value
+                    # logger.info(f"message_data: {message_data}")
+                    # logger.info(f"message_data keys: {message_data.keys()}")
+                    logger.info("\n----------------------------------")
+                    log_dict_elements(message_data)
+                    logger.info("\n----------------------------------")                    
 
+                    # convert to Pydantic model
+                    message = OuterWrapper(**message_data)
+
+                    logger.info(f"Converted to Pydantic Message: {message}")
+                    logger.info(f"type: {type(message)}")
+                    
+                    contact_email_address=message.structured.email_address
+                    logger.info(f"Contact email address: {contact_email_address}")
+
+                    the_found_customer = find_the_customer_by_contact_email(contact_email_address)
+                    logger.info(f"the_customer type: {type(the_found_customer)}")
+                    # Need to add some validation here, if there is no match in the database, this is a prospect, not a customer
+                    # update the input message with the found database data
+                    message.structured.company_id=the_found_customer.customer_id
+                    message.structured.company_name=the_found_customer.company_name
+                    message.structured.country=the_found_customer.country
+                    message.structured.phone=the_found_customer.phone
+
+                    logger.info(f"JSON: {message.model_dump_json()} ")
+
+                    self.producer.send(KAFKA_OUTPUT_TOPIC,message)
+
+                except json.JSONDecodeError as e:
+                    logger.error(f"JSON decoding failed: {e}")
+                except Exception as e:
+                    logger.error(f"Failed to create Message object: {str(e)}")
+                    logger.error(f"Message data that caused error: {message_data}")
+                    raise
 
         except Exception as e:
             logger.error(f"Error processing message: {str(e)}")
-            error_message = Message(
+            error_message = OuterWrapper(
                 id="error",
                 filename="error.txt",
                 content="Error processing message", 

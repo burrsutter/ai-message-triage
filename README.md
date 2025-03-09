@@ -2,6 +2,8 @@
 
 A Kafka-based system for automated email message analysis and triage using LLMs (Large Language Models). This project processes customer support emails through a pipeline that analyzes content, extracts key information, and routes messages based on their characteristics.
 
+Note: This is a totally "hacked together" codebase.  Needs an investment of time to really analyze the input/output Pydantic message definitions.  Python's dynamic typing makes for some more interesting debugging opportunities when the str, dict and Pydantic models are not aligned perfectly.   A proper microservices architecture would have very strict rules over the message JSON schema making for easier testing interoperability. 
+
 ## Features
 
 - Kafka-based message processing pipeline
@@ -121,9 +123,9 @@ Run the producer to send messages:
    python kafka-producer-pydantic.py
    ```
 
-## End to End
+## End to End Demo
 
-Intake 
+### Intake 
 
 ```bash
 python -m intake.file-intake
@@ -133,7 +135,7 @@ python -m intake.file-intake
  kcat -C -b localhost:9092 -t intake
 ```
 
-Structured
+### Structured
 
 ```bash
 python -m structure.message-structure
@@ -143,7 +145,7 @@ python -m structure.message-structure
 kcat -C -b localhost:9092 -t structured
 ```
 
-Guardian
+### Guardian
 
 ```bash
 python -m guardian.message-guardian
@@ -153,13 +155,40 @@ python -m guardian.message-guardian
 kcat -C -b localhost:9092 -t cleared
 ```
 
-Customer
+### Customer
 
 ```bash
 python -m customer.customer-lookup
 ```
 
-Drag and drop a file to "intake" directory
+```bash
+kcat -C -b localhost:9092 -t ready
+```
+
+
+### Router
+
+```bash
+python -m router.message-router
+```
+
+```bash
+kcat -C -b localhost:9092 -t support
+```
+
+```bash
+kcat -C -b localhost:9092 -t finance
+```
+
+```bash
+kcat -C -b localhost:9092 -t website
+```
+
+### Review
+
+### Fire
+
+**Drag and drop a file to "intake" directory**
 
 
 

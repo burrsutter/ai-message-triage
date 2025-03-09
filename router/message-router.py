@@ -6,7 +6,8 @@ from kafka import KafkaConsumer, KafkaProducer
 from dotenv import load_dotenv
 from openai import OpenAI
 from models import OuterWrapper
-from models import StructuredObject
+from models import SelectedRoute
+from models import Route
 import json
 import os
 import logging
@@ -15,13 +16,16 @@ from openai import OpenAI
 
 # Load env vars
 load_dotenv()
-KAFKA_INPUT_TOPIC=os.getenv("KAFKA_STRUCTURE_INPUT_TOPIC") 
 KAFKA_BROKER=os.getenv("KAFKA_BROKER")
-KAFKA_OUTPUT_TOPIC=os.getenv("KAFKA_STRUCTURE_OUTPUT_TOPIC")
+KAFKA_INPUT_TOPIC=os.getenv("KAFKA_ROUTER_INPUT_TOPIC") 
+KAFKA_ROUTER_OUTPUT_SUPPORT_TOPIC=os.getenv("KAFKA_ROUTER_OUTPUT_SUPPORT_TOPIC")
+KAFKA_ROUTER_OUTPUT_FINANCE_TOPIC=os.getenv("KAFKA_ROUTER_OUTPUT_FINANCE_TOPIC")
+KAFKA_ROUTER_OUTPUT_WEBSITE_TOPIC=os.getenv("KAFKA_ROUTER_OUTPUT_WEBSITE_TOPIC")
+
 KAFKA_REVIEW_TOPIC=os.getenv("KAFKA_REVIEW_TOPIC")
-MODEL_NAME=os.getenv("STRUCTURE_MODEL_NAME")
-API_KEY=os.getenv("STRUCTURE_API_KEY")
-INFERENCE_SERVER_URL=os.getenv("STRUCTURE_SERVER_URL")
+MODEL_NAME=os.getenv("ROUTER_MODEL_NAME")
+API_KEY=os.getenv("ROUTER_API_KEY")
+INFERENCE_SERVER_URL=os.getenv("ROUTER_SERVER_URL")
 
 client = OpenAI(
     api_key=API_KEY,
@@ -37,9 +41,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+logger.info(f"INFERENCE_SERVER_URL: {INFERENCE_SERVER_URL}")
+logger.info(f"MODEL_NAME: {MODEL_NAME}")
 logger.info(f"Kafka bootstrap servers: {KAFKA_BROKER}")
 logger.info(f"Kafka input topic: {KAFKA_INPUT_TOPIC}")
-logger.info(f"Kafka output topic: {KAFKA_OUTPUT_TOPIC}")
+logger.info(f"Kafka output Support topic: {KAFKA_ROUTER_OUTPUT_SUPPORT_TOPIC}")
+logger.info(f"Kafka output Finance topic: {KAFKA_ROUTER_OUTPUT_FINANCE_TOPIC}")
+logger.info(f"Kafka output Website topic: {KAFKA_ROUTER_OUTPUT_WEBSITE_TOPIC}")
 
 
 llmclient = OpenAI(
@@ -55,6 +63,7 @@ class MessageProcessor():
             bootstrap_servers=KAFKA_BROKER,
             value_deserializer=lambda x: json.loads(x.decode('utf-8')),
             auto_offset_reset='latest',
+            group_id='message_router',
             enable_auto_commit=True
         )
 
@@ -64,46 +73,50 @@ class MessageProcessor():
         )
 
     # Takes the input, modifies, returns it back    
-    def process(self, message:OuterWrapper) -> OuterWrapper:
+    def process(self, message:OuterWrapper) -> SelectedRoute:
         try:
-            logger.info("LLM Structure Processing: " + message.content)
+            logger.info("LLM Processing: " + message.content)
 
             # -------------------------------------------------------
             # LLM Magic Happens
             # -------------------------------------------------------
+            content_lower = message.content.lower()
 
             completion = client.beta.chat.completions.parse(
                 model=MODEL_NAME,
                 messages=[
-                    {"role": "system", "content": "Extract the customer support email information."},
-                    {"role": "user", "content": message.content},
+                    {
+                    "role": "system", "content": 
+                    """ You are an AI-powered message classifier for an enterprise support system. 
+                    Your task is to analyze email messages and determine the most appropriate team for handling them:
+                    - **Support**: Issues related to technical support, product usage, and troubleshooting.
+                    - **Finance**: Questions about billing, invoices, receipts, payments, refunds, or financial disputes.
+                    - **Website**: Issues related to website functionality, login problems, passport reset, account access, or technical errors on the website.
+                    - **Unknown**: If the message does not fit into any of the above categories or lacks sufficient context to classify accurately.
+                    """
+                    },
+                    {
+                    "role": "user",
+                    "content": "Classify the following email message and determine the appropriate routing category (Support, Finance, Website, or Unknown).\n" 
+                            + content_lower,
+                    },                
                 ],
-                response_format=StructuredObject,
+                temperature=0.0, 
+                response_format=SelectedRoute,
             )
-            
-            analysis = completion.choices[0].message.parsed
-            if analysis: 
-                logger.info(f"analysis type: {type(analysis)}")
-                logger.info("------------------------")
-                # logger.info(emailanalysis)
-                logger.info(f"Reason:   {analysis.reason}")
-                logger.info(f"Customer: {analysis.customer_name}")
-                logger.info(f"Email:    {analysis.email_address}")
-                logger.info(f"Product:  {analysis.product_name}")
-                logger.info(f"Sentiment:{analysis.sentiment}")
-                logger.info(f"Escalate: {analysis.escalate}")
-                logger.info("------------------------")
-
-                message.structured=analysis
+            response= completion.choices[0].message.parsed            
+            logger.info(f"LLM response type: {type(response)}")
+            logger.info(f"Route selected: {response.route}")
             # -------------------------------------------------------
             # LLM Magic Happens
             # -------------------------------------------------------
 
-            return message
+            return response
         except Exception as e:
             # Need to say something about what when wrong
             logger.error(f"BAD Thing: {e}")
-            return message
+            return None
+        
     
     def to_review(self, message: OuterWrapper):
         try:
@@ -129,18 +142,31 @@ class MessageProcessor():
                 # Convert JSON data into a Pydantic Message object
                 try:
                     message = OuterWrapper(**message_data)
+                    # Process the message
+                    selected_route = self.process(message)
+                    logger.info(f"selected_route: {selected_route.route}")
+                    logger.info(f"selected_route type: {type(selected_route.route)}")
                 except Exception as e:
                     logger.error(f"Failed to create Message object: {str(e)}")
                     logger.error(f"Message data that caused error: {message_data}")
                     raise
 
-                # Process the message
-                processed_message = self.process(message)
-                logger.info(f"After Processing message: {processed_message}")
-                logger.info(f"After JSON: {processed_message.model_dump_json()}")
-                # if we fail to extract structure send to review topic
-                # Send the message to output
-                self.producer.send(KAFKA_OUTPUT_TOPIC, processed_message.model_dump())
+                if selected_route.route == Route.support:
+                    logger.info("Routing message to Support Team.")
+                    message.route = Route.support
+                    self.producer.send(KAFKA_ROUTER_OUTPUT_SUPPORT_TOPIC, message.model_dump())
+                elif selected_route.route == Route.finance:
+                    logger.info("Routing message to Finance Team.")
+                    message.route = Route.finance
+                    self.producer.send(KAFKA_ROUTER_OUTPUT_FINANCE_TOPIC, message.model_dump())
+                elif selected_route.route == Route.website:
+                    logger.info("Routing message to Website Team.")
+                    message.route = Route.website
+                    self.producer.send(KAFKA_ROUTER_OUTPUT_WEBSITE_TOPIC, message.model_dump())
+                else:
+                    logger.info("Message classification is Unknown. Sending for review.")
+                    message.route = Route.unknown
+                    self.to_review(message)
 
         except Exception as e:
             logger.error(f"Error processing message: {str(e)}")

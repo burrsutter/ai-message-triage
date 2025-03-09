@@ -1,5 +1,5 @@
 import dotenv
-from models import Message
+from models import OuterWrapper
 from kafka import KafkaProducer
 import logging
 import os
@@ -59,7 +59,7 @@ class KafkaHandler:
             raise
 
 
-    def send_message(self, message: Message):
+    def send_message(self, message: OuterWrapper):
         """Send a message to the Kafka topic."""
         try:
             self.producer.send(self.topic, message.model_dump())
@@ -101,7 +101,7 @@ class FileProcessor:
                 content = f.read()
             
             # Create Pydantic model with a unique ID
-            file_content = Message(
+            file_content = OuterWrapper(
                 id=str(file_path.stat().st_ino),  # Using inode number as unique ID
                 filename=file_path.name,
                 content=content,

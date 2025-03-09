@@ -5,8 +5,8 @@
 from kafka import KafkaConsumer, KafkaProducer
 from dotenv import load_dotenv
 from openai import OpenAI
-from models import Message
-from models import AnalyzedMessage
+from models import OuterWrapper
+from models import StructuredObject
 import json
 import os
 import logging
@@ -50,6 +50,25 @@ llmclient = OpenAI(
     base_url=INFERENCE_SERVER_URL
     )
 
+# -------------------------------------------------------
+# Debugging function
+# -------------------------------------------------------
+def log_dict_elements(d, prefix=""):
+    """
+    Recursively logs each key-value pair in a dictionary.
+    
+    :param d: Dictionary to log.
+    :param prefix: String prefix for nested keys.
+    """
+    for key, value in d.items():
+        full_key = f"{prefix}.{key}" if prefix else key
+        
+        if isinstance(value, dict):  # Recursively log nested dictionaries
+            logging.info(f"{full_key}: [Nested Dictionary]")
+            log_dict_elements(value, full_key)
+        else:
+            logging.info(f"{full_key}: {value}")
+
 
 class MessageProcessor():
     def __init__(self):
@@ -67,7 +86,7 @@ class MessageProcessor():
         )
 
     # Takes the input, modifies, returns it back    
-    def process(self, message:Message) -> Message:
+    def process(self, message:OuterWrapper) -> OuterWrapper:
         try:
             logger.info("LLM Processing: " + message.content)
 
@@ -100,7 +119,7 @@ class MessageProcessor():
             if (response == "Yes"):                 
                 message.error.append(f"guardian:{system_test}")
 
-
+            # too many false positives with the jailbreak test at this moment
             # system_test="jailbreak"
             # completion = client.chat.completions.create(
             #     model=MODEL_NAME, 
@@ -138,7 +157,7 @@ class MessageProcessor():
             logger.error(f"Exception in LLM Processing: {e}")
             return message
     
-    def to_review(self, message: Message):
+    def to_review(self, message: OuterWrapper):
         try:
             self.producer.send(KAFKA_REVIEW_TOPIC, message.model_dump())
             self.producer.flush()
@@ -157,10 +176,9 @@ class MessageProcessor():
                 # Extract the JSON payload from the Kafka message
                 message_data = kafka_message.value  # `value` contains the deserialized JSON payload
                 logger.info(f"Kafka Message: {message_data}")
-                # Convert Kafka JSON data into a Pydantic Message object
-                
+                # Convert Kafka JSON data into a Pydantic Message object                
                 try:
-                    message = Message(**message_data)
+                    message = OuterWrapper(**message_data)
                 except Exception as e:
                     logger.error(f"Failed to create Message object: {str(e)}")
                     logger.error(f"Message data that caused error: {message_data}")
@@ -175,12 +193,12 @@ class MessageProcessor():
                 if len(processed_message.error) > 0:
                     self.to_review(processed_message)
                 else:                
-                    self.producer.send(KAFKA_OUTPUT_TOPIC,processed_message)
-
+                    self.producer.send(KAFKA_OUTPUT_TOPIC,processed_message.model_dump())
+                    
 
         except Exception as e:
             logger.error(f"Error processing message: {str(e)}")
-            error_message = Message(
+            error_message = OuterWrapper(
                 id="error",
                 filename="error.txt",
                 content="Error processing message", 

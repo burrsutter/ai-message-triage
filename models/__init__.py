@@ -1,25 +1,42 @@
+from httpx import stream
 from pydantic import BaseModel, Field
 
 
 from datetime import datetime
 from typing import Optional, Dict, Any
+from enum import Enum
 
-class AnalyzedMessage(BaseModel):
+class Route(str, Enum):
+    support = "support"
+    finance = "finance"
+    website = "website"
+    unknown = "unknown"
+
+class SelectedRoute(BaseModel):
+    route: Route
+    reason: str
+    escalation_required: bool
+
+
+class StructuredObject(BaseModel):
     reason: str
     sentiment: Optional[str]
+    company_id: Optional[str]
     company_name: Optional[str]
-    customer_name: Optional[str]    
+    customer_name: Optional[str]
+    country: Optional[str]
     email_address: Optional[str]
     phone: Optional[str]
     product_name: Optional[str]
     escalate: bool
 
-class Message(BaseModel):
+class OuterWrapper(BaseModel):
     id: str
     filename: str
     content: str
     metadata: Dict[str, Any] = Field(default_factory=dict)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
-    structured: Optional[AnalyzedMessage] = None
+    structured: Optional[StructuredObject] = None
+    route: Optional[Route] = None
     comment: Optional[str] = None
     error: list = Field(default_factory=list)

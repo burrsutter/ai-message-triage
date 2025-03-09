@@ -1,5 +1,5 @@
 from kafka import KafkaProducer
-from models import Message # Pydantic class defined in message.py
+from models import OuterWrapper
 import os
 import uuid
 import json
@@ -18,7 +18,7 @@ producer = KafkaProducer(
     value_serializer=lambda x: json.dumps(x, default=str).encode('utf-8')
 )
 
-kafka_message = Message(
+kafka_message = OuterWrapper(
     id=str(uuid.uuid4()),
     filename="test-message.txt",
     timestamp=datetime.utcnow().isoformat(), 
