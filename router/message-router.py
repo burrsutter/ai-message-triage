@@ -129,7 +129,7 @@ class MessageProcessor():
     # -------------------------------------------------------
     # Action Happens
     # -------------------------------------------------------
-    def run(self):       
+    def run(self):
         try:
             logger.info("Starting message processor...")
             for kafka_message in self.consumer:

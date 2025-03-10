@@ -63,7 +63,7 @@ SpeechRecognition==3.8.1
 SQLAlchemy==2.0.38
 sympy==1.13.1
 tenacity==9.0.0
-textract==1.6.5
+#textract==1.6.5
 threadpoolctl==3.5.0
 tokenizers==0.21.0
 torch==2.6.0

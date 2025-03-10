@@ -34,17 +34,8 @@ The system consists of several components:
 
 ## Environment Variables
 
-Create a `.env` file with the following configurations:
+Copy `.env.example` file and edit
 
-```
-KAFKA_INPUT_TOPIC=<input-topic-name>
-KAFKA_BROKER=<kafka-broker-address>
-KAFKA_OUTPUT_TOPIC=<output-topic-name>
-KAFKA_REVIEW_TOPIC=<review-topic-name>
-MODEL_NAME=<llm-model-name>
-API_KEY=<your-api-key>
-INFERENCE_SERVER_URL=<llm-server-url>
-```
 
 ## Project Structure
 
@@ -186,7 +177,17 @@ kcat -C -b localhost:9092 -t website
 
 ### Review
 
-### Fire
+```bash
+python -m support.support-responder
+```
+
+### Support
+
+### Finance
+
+### Website
+
+
 
 **Drag and drop a file to "intake" directory**
 

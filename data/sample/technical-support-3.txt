@@ -1,5 +1,5 @@
  
-I have the TechGear Laptop running the Linux and having trouble with the video driver.  Do you have a new video driver available?
+I have the TechGear Laptop running the Linux and having trouble with the video driver.  Where are the current video driver downloads?
 
 Vicky
 victoriaashworth@example.com

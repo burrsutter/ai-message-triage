@@ -1,0 +1,52 @@
+TechGear Pro Laptop – Supported Video Drivers & Downloads
+
+Issue
+
+Users need to download and install the correct video drivers for their TechGear Pro Laptop to ensure optimal graphics performance.
+
+Solution
+
+Step 1: Identify Your Graphics Hardware
+
+TechGear Pro Laptops may come with different GPU options:
+	•	Integrated Graphics: Intel UHD or AMD Radeon Vega
+	•	Dedicated Graphics: NVIDIA GeForce RTX or AMD Radeon RX
+
+To check your GPU:
+	•	Windows: Open Device Manager → Expand Display Adapters.
+	•	Linux: Run lspci | grep VGA in the terminal.
+
+Step 2: Download the Correct Driver
+
+Option 1: Download from TechGear Official Support Page
+
+Visit the TechGear Pro Laptop Driver Download Page. Enter your laptop model and select Operating System (Windows 10/11, Linux) to download the latest driver package.
+
+Option 2: Download from GPU Manufacturer’s Website
+
+Intel: https://www.intel.com/content/www/us/en/support/detect.html
+AMD: https://www.amd.com/en/support
+NVIDIA: https://www.nvidia.com/download/index.aspx
+
+Step 3: Install the Video Driver
+
+Windows Installation
+	1.	Run the downloaded driver installer (.exe file).
+	2.	Follow the on-screen instructions to install the driver.
+	3.	Restart your laptop for changes to take effect.
+
+Linux Installation
+	1.	For Intel/AMD (Open-Source Drivers): Run
+    sudo apt update && sudo apt upgrade
+    2.	For Proprietary NVIDIA Drivers: Run
+    sudo ubuntu-drivers install
+    3. or install via
+    sudo apt install nvidia-driver-<version>    
+	4.	Restart your system for the changes to apply.
+
+Step 4: Verify Driver Installation
+	•	Windows: Open Device Manager → Expand Display Adapters → Right-click GPU → Select Properties → Check the Driver Version.
+	•	Linux: Run:
+    glxinfo | grep "OpenGL version"
+
+For further assistance, visit the TechGear Support Center or contact TechGear Technical Support.

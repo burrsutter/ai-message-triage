@@ -17,7 +17,10 @@ class SelectedRoute(BaseModel):
     reason: str
     escalation_required: bool
 
-
+class SupportResponse(BaseModel):
+    response: str
+    source: Optional[str]
+    
 class StructuredObject(BaseModel):
     reason: str
     sentiment: Optional[str]
@@ -38,5 +41,6 @@ class OuterWrapper(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     structured: Optional[StructuredObject] = None
     route: Optional[Route] = None
+    support: Optional[SupportResponse] = None
     comment: Optional[str] = None
     error: list = Field(default_factory=list)

@@ -1,0 +1,51 @@
+How to Replace Windows with Linux on Your TechGear Pro Laptop
+
+Issue
+
+You purchased a TechGear Pro Laptop and want to remove Windows to install Linux.
+
+Solution
+
+Step 1: Check Hardware Compatibility
+
+Most Linux distributions work well with TechGear Pro Laptops. However, for the best experience, check:
+	•	Wi-Fi and Bluetooth support
+	•	Graphics driver compatibility (especially for NVIDIA or AMD GPUs)
+	•	Touchpad and function keys behavior
+
+Refer to your selected Linux distribution’s hardware compatibility list.
+
+Step 2: Backup Important Data
+
+Before making any changes, create a backup of important files using:
+	•	An external USB drive
+	•	Cloud storage
+	•	A second internal drive (if available)
+
+Step 3: Create a Bootable Linux USB Drive
+	1.	Download a Linux ISO (e.g., Ubuntu, Fedora, Debian, or Arch Linux) from the official website.
+	2.	Use Rufus (Windows) or balenaEtcher (cross-platform) to create a bootable USB drive (8GB or larger).
+
+Step 4: Boot from the USB Drive
+	1.	Insert the USB into your TechGear Pro Laptop.
+	2.	Restart and press F12 (or Esc/F2 depending on the model) to access the boot menu.
+	3.	Select your USB drive and boot into the Linux Live Environment.
+
+Step 5: Install Linux & Remove Windows
+	1.	Once in the Linux installer, select Erase Disk and Install Linux.
+	2.	Follow the on-screen steps to configure partitions, user accounts, and settings.
+	3.	Complete the installation and restart your laptop.
+
+Step 6: Install Additional Drivers & Updates
+
+After installation:
+	•	Run sudo apt update && sudo apt upgrade (for Debian-based distros) or dnf update (for Fedora).
+	•	Install proprietary drivers if needed (e.g., sudo ubuntu-drivers install for NVIDIA).
+	•	Configure additional settings like keyboard shortcuts and power management.
+
+Troubleshooting
+	•	No Wi-Fi? Use a wired connection or download drivers manually.
+	•	Boot issues? Ensure Secure Boot is disabled in BIOS.
+	•	Performance issues? Try a lighter distro like Xubuntu or Manjaro.
+
+For further assistance, visit the TechGear Pro Linux Community Forum or contact support.
