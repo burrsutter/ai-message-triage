@@ -1,0 +1,66 @@
+CloudSync Syncing Between Windows PC and mobile devices
+
+
+Step 1: Check Internet Connection
+	•	Ensure all devices are connected to the internet.
+	•	Try opening a webpage on each device to confirm connectivity.
+	•	If using Wi-Fi, try switching to a different network or restart the router.
+
+Step 2: Verify CloudSync Service Status
+	•	Check if CloudSync is experiencing any outages by visiting the CloudSync Status Page or the official support website.
+
+Step 3: Restart CloudSync on All Devices
+
+On Windows PC:
+	1.	Right-click the CloudSync icon in the taskbar.
+	2.	Click Exit and restart the application.
+	3.	If the issue persists, restart your PC.
+
+On Android Tablet:
+	1.	Open Settings > Apps > CloudSync.
+	2.	Tap Force Stop, then restart the app.
+	3.	Restart the tablet if needed.
+
+On iPhone:
+	1.	Open Settings > CloudSync.
+	2.	Tap Force Close or swipe up to close the app from the app switcher.
+	3.	Restart the iPhone.
+
+Step 4: Ensure You’re Logged into the Same CloudSync Account
+	•	Open CloudSync on all devices.
+	•	Verify that you are logged in with the same account credentials.
+
+Step 5: Check Sync Settings & Permissions
+
+On Windows PC:
+	1.	Open CloudSync Settings.
+	2.	Ensure Sync is Enabled for the required folders.
+	3.	Check if files are set to “Available Online Only”, which may prevent syncing.
+
+On Android Tablet:
+	1.	Open the CloudSync app and go to Settings > Sync Preferences.
+	2.	Ensure auto-sync is turned ON.
+	3.	Grant necessary permissions (Storage, Background Data).
+
+On iPhone:
+	1.	Go to Settings > Privacy & Security > Files and Folders.
+	2.	Ensure CloudSync has permission to access files.
+	3.	Check Background App Refresh is enabled for CloudSync (Settings > General > Background App Refresh).
+	4.	Enable iCloud Drive if CloudSync uses it for syncing (Settings > [Your Name] > iCloud > iCloud Drive).
+
+Step 6: Manually Trigger a Sync
+	•	On Windows, right-click the CloudSync folder and select Sync Now.
+	•	On Android, open CloudSync and refresh the file list.
+	•	On iPhone, open CloudSync, pull down the screen to refresh sync, or try uploading a small test file.
+
+Step 7: Check for App Updates
+	•	Go to Microsoft Store (Windows), Google Play Store (Android), or App Store (iPhone) and check for CloudSync updates.
+	•	If updates are available, install them and restart all devices.
+
+Step 8: Reinstall CloudSync
+
+If the issue persists:
+	1.	Uninstall CloudSync from all devices.
+	2.	Restart each device.
+	3.	Reinstall CloudSync from the official source.
+	4.	Log in and check if sync resumes.
