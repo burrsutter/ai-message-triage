@@ -36,6 +36,8 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
+logging.getLogger("kafka").setLevel(logging.WARNING)
+logging.getLogger("kafka.conn").setLevel(logging.WARNING)
 
 logger.info(f"Kafka bootstrap servers: {KAFKA_BROKER}")
 logger.info(f"Kafka input topic: {KAFKA_INPUT_TOPIC}")

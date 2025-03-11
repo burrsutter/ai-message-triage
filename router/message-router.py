@@ -40,6 +40,8 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
+logging.getLogger("kafka").setLevel(logging.WARNING)
+logging.getLogger("kafka.conn").setLevel(logging.WARNING)
 
 logger.info(f"INFERENCE_SERVER_URL: {INFERENCE_SERVER_URL}")
 logger.info(f"MODEL_NAME: {MODEL_NAME}")
