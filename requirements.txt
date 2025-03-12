@@ -76,3 +76,6 @@ watchdog==6.0.0
 xlrd==1.2.0
 XlsxWriter==3.2.2
 zstandard==0.23.0
+fastapi>=0.115.0
+uvicorn>=0.34.0
+email-validator>=2.0.0

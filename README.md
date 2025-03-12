@@ -123,7 +123,7 @@ python -m intake.file-intake
 ```
 
 ```bash
- kcat -C -b localhost:9092 -t intake
+ ./kcat-clear.sh intake
 ```
 
 ### Structured
@@ -133,7 +133,7 @@ python -m structure.message-structure
 ```
 
 ```bash
-kcat -C -b localhost:9092 -t structured
+./kcat-clear.sh structured
 ```
 
 ### Guardian
@@ -143,7 +143,7 @@ python -m guardian.message-guardian
 ```
 
 ```bash
-kcat -C -b localhost:9092 -t cleared
+./kcat-clear.sh cleared
 ```
 
 ### Customer
@@ -153,7 +153,7 @@ python -m customer.customer-lookup
 ```
 
 ```bash
-kcat -C -b localhost:9092 -t ready
+./kcat-clear.sh ready
 ```
 
 
@@ -164,28 +164,54 @@ python -m router.message-router
 ```
 
 ```bash
-kcat -C -b localhost:9092 -t support
+./kcat-clear.sh support
 ```
 
 ```bash
-kcat -C -b localhost:9092 -t finance
+./kcat-clear.sh finance
 ```
 
 ```bash
-kcat -C -b localhost:9092 -t website
+./kcat-clear.sh website
 ```
 
-### Review
+### Support
 
 ```bash
 python -m support.support-responder
 ```
 
-### Support
+```bash
+./kcat-clear.sh support
+```
+
+```bash
+./kcat-clear.sh outflow
+```
+
+### Website
+
+```bash
+cd website
+python api-runner.py
+```
+Or dev mode `uvicorn password-reset-api:app --reload`
+
+```bash
+python -m website.website-support
+```
+
+```bash
+./kcat-clear.sh website
+```
+
+```bash
+./kcat-clear.sh outflow
+```
+
 
 ### Finance
 
-### Website
 
 
 

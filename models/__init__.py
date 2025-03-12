@@ -20,7 +20,11 @@ class SelectedRoute(BaseModel):
 class SupportResponse(BaseModel):
     response: str
     source: Optional[str]
-    
+
+class WebsiteResponse(BaseModel):
+    response: str
+    toolinvoked: bool
+        
 class StructuredObject(BaseModel):
     reason: str
     sentiment: Optional[str]
@@ -42,5 +46,6 @@ class OuterWrapper(BaseModel):
     structured: Optional[StructuredObject] = None
     route: Optional[Route] = None
     support: Optional[SupportResponse] = None
+    website: Optional[WebsiteResponse] = None
     comment: Optional[str] = None
     error: list = Field(default_factory=list)
