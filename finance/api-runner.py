@@ -1,5 +1,5 @@
 """
-Run script for the Password Reset API.
+Run script for the Finance API.
 This script loads environment variables from .env file and starts the API server.
 """
 import os
@@ -14,14 +14,14 @@ def main():
     load_dotenv()
     
     # Get configuration from environment variables with defaults
-    host = os.getenv("PASSWORD_API_HOST")
-    port = int(os.getenv("PASSWORD_API_PORT"))
+    host = os.getenv("FINANCE_API_HOST")
+    port = int(os.getenv("FINANCE_API_PORT"))
     
-    print(f"Starting Password Reset API on {host}:{port}")
+    print(f"Starting Finance API on {host}:{port}")
     
     # Start the API server
     uvicorn.run(
-        "password-reset-api:app",
+        "finance-api:app",
         host=host,
         port=port,
         reload=True

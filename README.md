@@ -114,7 +114,7 @@ Run the producer to send messages:
    python kafka-producer-pydantic.py
    ```
 
-## End to End Demo
+## End to End (E2E) Demo
 
 ### Intake 
 
@@ -192,6 +192,10 @@ python -m support.support-responder
 ### Website
 
 ```bash
+./kcat-clear.sh website
+```
+
+```bash
 cd website
 python api-runner.py
 ```
@@ -202,17 +206,29 @@ python -m website.website-support
 ```
 
 ```bash
-./kcat-clear.sh website
+./kcat-clear.sh outflow
 ```
+
+### Finance
+
+```bash
+./kcat-clear.sh finance
+```
+
+```bash
+python -m finance.finance-responder
+```
+
+```bash
+cd finance
+python api-runner.py
+```
+
+
 
 ```bash
 ./kcat-clear.sh outflow
 ```
-
-
-### Finance
-
-
 
 
 **Drag and drop a file to "intake" directory**
