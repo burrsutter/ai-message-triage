@@ -37,31 +37,6 @@ The system consists of several components:
 Copy `.env.example` file and edit
 
 
-## Project Structure
-
-- `kafka-in-llm-out.py`: Main application file handling message processing
-- `models.py`: Pydantic models for message and email analysis
-- `kafka-producer-pydantic.py`: Kafka producer implementation
-- `kafka-consumer-pydantic.py`: Kafka consumer implementation
-- `.env`: Environment configuration file
-
-## Data Models
-
-### Message
-- `id`: Unique message identifier
-- `content`: Raw message content
-- `timestamp`: Message creation time
-- `comment`: Analysis results (AnalyzedMessage)
-- `error`: Error information (if any)
-
-### AnalyzedMessage
-- `reason`: Primary reason for the email
-- `sentiment`: Detected sentiment
-- `customer_name`: Extracted customer name
-- `email_address`: Customer email address
-- `product_name`: Referenced product
-- `escalate`: Escalation flag
-
 ## Usage
 
 1. install, start and configure your Kafka broker

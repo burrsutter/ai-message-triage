@@ -8,6 +8,7 @@
 /opt/homebrew/bin/kafka-topics --bootstrap-server localhost:9092 --delete --topic support
 /opt/homebrew/bin/kafka-topics --bootstrap-server localhost:9092 --delete --topic finance
 /opt/homebrew/bin/kafka-topics --bootstrap-server localhost:9092 --delete --topic website
+/opt/homebrew/bin/kafka-topics --bootstrap-server localhost:9092 --delete --topic sales
 /opt/homebrew/bin/kafka-topics --bootstrap-server localhost:9092 --delete --topic outflow
 
 /opt/homebrew/bin/kafka-topics --bootstrap-server localhost:9092 --create --topic input --partitions 1 --replication-factor 1
@@ -20,6 +21,7 @@
 /opt/homebrew/bin/kafka-topics --bootstrap-server localhost:9092 --create --topic support --partitions 1 --replication-factor 1
 /opt/homebrew/bin/kafka-topics --bootstrap-server localhost:9092 --create --topic finance --partitions 1 --replication-factor 1
 /opt/homebrew/bin/kafka-topics --bootstrap-server localhost:9092 --create --topic website --partitions 1 --replication-factor 1
+/opt/homebrew/bin/kafka-topics --bootstrap-server localhost:9092 --create --topic sales --partitions 1 --replication-factor 1
 /opt/homebrew/bin/kafka-topics --bootstrap-server localhost:9092 --create --topic outflow --partitions 1 --replication-factor 1
 
 
