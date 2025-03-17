@@ -218,7 +218,7 @@ class MessageProcessor():
                         self.producer.send(KAFKA_OUTPUT_TOPIC,message.model_dump())
                     else: # if there is no match in the database, this is a prospect, not a customer
                         logger.info(f"No contact with email address: {contact_email_address}")
-                        message.error = message.error.append(f"no contact: {contact_email_address}")
+                        # message.error = message.error.append(f"no contact: {contact_email_address}")
                         self.to_review(message)
 
                 except json.JSONDecodeError as e:

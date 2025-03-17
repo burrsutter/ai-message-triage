@@ -1,1 +1,5 @@
-Hello, I purchased a TechGear Pro Laptop, but I can't find the invoice in my email. Sincerely, Liu liuwong@example.com
+Hello, I can't find the invoice for my most recent purchase, please send my invoice history. 
+
+Sincerely, 
+Thomas 
+thomashardy@example.com

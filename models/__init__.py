@@ -24,6 +24,11 @@ class SupportResponse(BaseModel):
 class WebsiteResponse(BaseModel):
     response: str
     toolinvoked: bool
+
+class FinanceResponse(BaseModel):
+    response: str
+    toolinvoked: bool
+
         
 class StructuredObject(BaseModel):
     reason: str
@@ -47,5 +52,10 @@ class OuterWrapper(BaseModel):
     route: Optional[Route] = None
     support: Optional[SupportResponse] = None
     website: Optional[WebsiteResponse] = None
+    finance: Optional[FinanceResponse] = None
     comment: Optional[str] = None
-    error: list = Field(default_factory=list)
+    error: Optional[list] = Field(default_factory=list)
+
+class OpportunityWrapper(BaseModel):
+    content: str
+

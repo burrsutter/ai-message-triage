@@ -19,11 +19,17 @@ Note: This is a totally "hacked together" codebase.  Needs an investment of time
 
 ## Architecture
 
-The system consists of several components:
-- Kafka Producer: Ingests email messages into the system
-- LLM Processor: Analyzes messages using OpenAI-compatible models
-- Kafka Consumer: Processes analyzed messages and routes them accordingly
-- Review System: Handles edge cases and messages requiring manual review
+A series of processors that take input, often send it through a LLM and produce output.
+
+opportunity-finder.py uses a reasoning model to generate code instead of using a simplier and more robust solution of Structured Output or Tool. 
+
+## ToDos
+
+The Kafka input/output is fairly boilerplate and has been copied & pasted hither and yon.  Having common/shared code
+would be better for maintenance and for debugging.  Also, this has mostly been tested for "happy path", more robust error and exception processing would be very helpful.
+
+The Pydantic Models grew organically while I was hacking away. They need to be "normalized" a fair bit.
+
 
 ## Prerequisites
 
@@ -199,10 +205,23 @@ cd finance
 python api-runner.py
 ```
 
-
-
 ```bash
 ./kcat-clear.sh outflow
+```
+
+
+### Opportunity
+
+```bash
+./kcat-clear.sh review
+```
+
+```bash
+python -m opportunity.opportunity-finder.py
+```
+
+```bash
+./kcat-clear.sh sales
 ```
 
 

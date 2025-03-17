@@ -9,7 +9,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from kafka import KafkaConsumer, KafkaProducer
 from dotenv import load_dotenv
-from models import OuterWrapper, WebsiteResponse
+from models import OuterWrapper, FinanceResponse
 import json
 import logging
 from openai import OpenAI
@@ -53,10 +53,7 @@ llmclient = OpenAI(
     base_url=INFERENCE_SERVER_URL
     )
 
-llmmessages = [
-    {"role": "system", "content": "You are a tool caller"},
-    {"role": "user", "content": "please send my order history burr@burrsutter.com"}
-]
+system_prompt = "You are an expert tool calling, review the user message and call the best matching tool"
 
 
 # --------------------------------------------------------------
@@ -66,18 +63,78 @@ tools = [
     {
         "type": "function",
         "function": {
-            "name": "order_history",
-            "description": "Get order history",
+            "name": "get_order_history",
+            "description": "Retrieve a customer's order history based on their email.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "email": {"type": "string"},                    
+                    "email": {
+                        "type": "string",
+                        "description": "Customer's email address"
+                    }
+                },                
+                "required": ["email"],
+                "additionalProperties": False 
+            },
+            "strict": True
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_invoice_history",
+            "description": "Retrieve a customer's invoice history based on their email.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "description": "The email address of the customer whose invoice history is being requested."
+                    }
                 },
                 "required": ["email"],
-                "additionalProperties": False,
+                "additionalProperties": False  
             },
-            "strict": True,
-        },
+            "strict": True
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "start_duplicate_charge_dispute",
+            "description": "Start the process to dispute a duplicate charge for a customer.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "description": "The email address of the customer initiating the dispute."
+                    }
+                },
+                "required": ["email"],
+                "additionalProperties": False  
+            },
+            "strict": True
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "find_lost_receipt",
+            "description": "Start the process to find a lost receipt for a customer.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "email": {
+                        "type": "string",
+                        "description": "The email address of the customer who lost their receipt."
+                    }
+                },
+                "required": ["email"],
+                "additionalProperties": False  
+            },
+            "strict": True
+        }
     }
 ]
 
@@ -85,20 +142,74 @@ tools = [
 # Any tool invoker
 # --------------------------------------------------------------
 def call_function(name, args):
-    if name == "order_history":
-        return order_history(**args)
+    if name == "get_order_history":
+        return get_order_history(**args)
+    if name == "get_invoice_history":
+        return get_invoice_history(**args)
+    if name == "start_duplicate_charge_dispute":
+        return start_duplicate_charge_dispute(**args)
+    if name == "find_lost_receipt":
+        return find_lost_receipt(**args)    
 
 # --------------------------------------------------------------
-# Actual Tool call 
+# Tool call: order_history
 # --------------------------------------------------------------
-def order_history(email):
-    finance_api_url = f"http://{API_HOST}:{API_PORT}/order-history"
+def get_order_history(email):
+    finance_api_url = f"http://{API_HOST}:{API_PORT}/get_order_history"
     
     payload = {"email": email}
     try:
         response = requests.post(finance_api_url,json=payload)
-        logger.info(f"\norder history invoked: {email}")
-        logger.info(f"for API: {finance_api_url}\n")
+        logger.info(f"\nget_order_history invoked: {email}")
+        # logger.info(f"for API: {finance_api_url}\n")
+
+    except requests.exceptions.RequestException as e:
+        print(f"\nError: {e}")
+        return None
+
+# --------------------------------------------------------------
+# Tool call: get_invoice_history
+# --------------------------------------------------------------
+def get_invoice_history(email):
+    finance_api_url = f"http://{API_HOST}:{API_PORT}/get_invoice_history"
+    
+    payload = {"email": email}
+    try:
+        response = requests.post(finance_api_url,json=payload)
+        logger.info(f"\get_invoice_history invoked: {email}")
+        # logger.info(f"for API: {finance_api_url}\n")
+
+    except requests.exceptions.RequestException as e:
+        print(f"\nError: {e}")
+        return None
+
+# --------------------------------------------------------------
+# Tool call: start_duplicate_charge_dispute
+# --------------------------------------------------------------
+def start_duplicate_charge_dispute(email):
+    finance_api_url = f"http://{API_HOST}:{API_PORT}/start_duplicate_charge_dispute"
+    
+    payload = {"email": email}
+    try:
+        response = requests.post(finance_api_url,json=payload)
+        logger.info(f"\start_duplicate_charge_dispute: {email}")
+        # logger.info(f"for API: {finance_api_url}\n")
+
+    except requests.exceptions.RequestException as e:
+        print(f"\nError: {e}")
+        return None
+
+# --------------------------------------------------------------
+# Tool call: find_lost_receipt
+# --------------------------------------------------------------
+def find_lost_receipt(email):
+    finance_api_url = f"http://{API_HOST}:{API_PORT}/find_lost_receipt"
+    
+    payload = {"email": email}
+    try:
+        response = requests.post(finance_api_url,json=payload)
+        logger.info(f"\nfind_lost_receipt invoked: {email}")
+        # logger.info(f"for API: {finance_api_url}\n")
 
     except requests.exceptions.RequestException as e:
         print(f"\nError: {e}")
@@ -116,7 +227,7 @@ class MessageProcessor():
             value_deserializer=lambda x: json.loads(x.decode('utf-8')),
             auto_offset_reset='earliest', # aids debugging
             # auto_offset_reset='latest',
-            enable_auto_commit=False            
+            enable_auto_commit=False # aids debugging
             # group_id='support_responder',            
         )
 
@@ -137,53 +248,48 @@ class MessageProcessor():
             # LLM Magic Happens
             # -------------------------------------------------------
             
-            user_message={
-                "role": "user",
-                "content": message.content
-            }
-            
-            # this to replace the test data including burr@burrsutter.com
-            for i, msg in enumerate(llmmessages):
-                if msg["role"] == "user":
-                    llmmessages[i]=user_message
-                    break
+            llmmessages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": message.content}
+            ]
 
             response = llmclient.chat.completions.create(
                 model=MODEL_NAME,  
                 messages=llmmessages,
                 tools=tools,
                 tool_choice="auto",
+                temperature=.1
             )
-            logger.info(f"LLM Response: {response}")
+
+            logger.info(f"LLM Response: {response.choices[0].message.tool_calls}")
 
             # look for tool calls and dynamically invoke those tools
 
             if response.choices[0].message.tool_calls:
                 for tool_call in response.choices[0].message.tool_calls:
                     name = tool_call.function.name
-                    args = json.loads(tool_call.function.arguments)
-        
-                    # logger.info("What? %s", response.choices[0].message)
+                    args = json.loads(tool_call.function.arguments)                    
                     llmmessages.append(response.choices[0].message)
-
-                    result = call_function(name, args)
+                    logger.info(f"attempting to call: {name}")
+                    tool_result = call_function(name, args)
                     tool_call_invoked=True
                     llmmessages.append(
-                        {"role": "tool", "tool_call_id": tool_call.id, "content": json.dumps(result)}
+                        {"role": "tool", "tool_call_id": tool_call.id, "content": json.dumps(tool_result)}
                     )
+            
             # if tool call fails, send to review
             if not tool_call_invoked:
-                reset_response = WebsiteResponse(
+                fin_response = FinanceResponse(
                     response="Tool NOT Invoked",
                     toolinvoked=False
                 )
-                message.website = reset_response
+                message.finance = fin_response
             else:
-                reset_response = WebsiteResponse(
+                fin_response = FinanceResponse(
                     response="Tool Invoked",
                     toolinvoked=True
                 )                
-                message.website = reset_response
+                message.finance = fin_response
 
             # -------------------------------------------------------
             # LLM Magic Happens
@@ -212,7 +318,7 @@ class MessageProcessor():
             
             
             for kafka_message in self.consumer:
-                logger.info(f"Before Processing message: {type(kafka_message)}")                
+                # logger.info(f"Before Processing message: {type(kafka_message)}")          
                 # Extract the JSON payload from the Kafka message
                 message_data = kafka_message.value  # `value` contains the deserialized JSON payload
                 # logger.info(f"Message data type: {type(message_data)}")
@@ -223,8 +329,8 @@ class MessageProcessor():
                     message = OuterWrapper(**message_data)
                     # Process the message
                     processed_message = self.process(message)
-                    logger.info(f"After Processing message: {processed_message}")
-                    if processed_message.website and processed_message.website.toolinvoked:
+                    logger.info(f"After processing: {processed_message.finance}")
+                    if processed_message.finance and processed_message.finance.toolinvoked:
                         self.producer.send(KAFKA_OUTPUT_TOPIC, processed_message.model_dump())
                     else: 
                         self.producer.send(KAFKA_REVIEW_TOPIC, processed_message.model_dump())

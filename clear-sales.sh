@@ -1,0 +1,2 @@
+/opt/homebrew/bin/kafka-topics --bootstrap-server localhost:9092 --delete --topic sales
+/opt/homebrew/bin/kafka-topics --bootstrap-server localhost:9092 --create --topic sales --partitions 1 --replication-factor 1
