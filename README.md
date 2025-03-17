@@ -21,7 +21,11 @@ Note: This is a totally "hacked together" codebase.  Needs an investment of time
 
 A series of processors that take input, often send it through a LLM and produce output.
 
+![Architecture Diagram](diagram-resized.png)
+
 opportunity-finder.py uses a reasoning model to generate code instead of using a simplier and more robust solution of Structured Output or Tool. 
+
+
 
 ## ToDos
 
