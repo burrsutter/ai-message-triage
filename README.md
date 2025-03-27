@@ -108,7 +108,7 @@ python -m intake.file-intake
 ```
 
 ```bash
- ./kcat-clear.sh intake
+./kcat-clear.sh intake
 ```
 
 ### Structured
@@ -163,11 +163,11 @@ python -m router.message-router
 ### Support
 
 ```bash
-python -m support.support-responder
+./kcat-clear.sh support
 ```
 
 ```bash
-./kcat-clear.sh support
+python -m support.support-responder
 ```
 
 ```bash
@@ -181,14 +181,15 @@ python -m support.support-responder
 ```
 
 ```bash
+python -m website.website-support
+```
+
+```bash
 cd website
 python api-runner.py
 ```
 Or dev mode `uvicorn password-reset-api:app --reload`
 
-```bash
-python -m website.website-support
-```
 
 ```bash
 ./kcat-clear.sh outflow
@@ -221,7 +222,7 @@ python api-runner.py
 ```
 
 ```bash
-python -m opportunity.opportunity-finder.py
+python -m opportunity.opportunity-finder
 ```
 
 ```bash
