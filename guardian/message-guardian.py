@@ -120,20 +120,6 @@ class MessageProcessor():
             if (response == "Yes"):                 
                 message.error.append(f"guardian:{system_test}")
 
-            # too many false positives with the jailbreak test at this moment
-            # system_test="jailbreak"
-            # completion = client.chat.completions.create(
-            #     model=MODEL_NAME, 
-            #         messages=[
-            #         { "role": "system","content": system_test },
-            #         { "role": "user", "content": message.content, },
-            #         ],
-            # )
-            # response = completion.choices[0].message.content
-            # logger.info(f"jailbreak {response}")
-            # if (response == "Yes"):                 
-            #     message.error.append(f"guardian:{system_test}")
-
             system_test="profanity"
             completion = client.chat.completions.create(
                 model=MODEL_NAME, 
