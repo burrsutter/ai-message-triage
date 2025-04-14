@@ -84,21 +84,6 @@ Edit accordingly
 pip install -r requirements.txt
 ```
 
-The following is a "quick test" to see if the basics are working
-
-Run the consumer:
-   ```bash
-   python kafka-consumer-pydantic.py
-   ```
-Run the main processor:
-   ```bash
-   python kafka-in-llm-out.py
-   ```
-Run the producer to send messages:
-   ```bash
-   python kafka-producer-pydantic.py
-   ```
-
 ## End to End (E2E) Demo
 
 ### Intake 
