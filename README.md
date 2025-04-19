@@ -55,7 +55,13 @@ Copy `.env.example` file and edit
 brew install kafka
 brew services start zookeeper
 brew services start kafka
+brew install kcat
 ```
+
+```
+brew services list
+```
+
 
 List of Topics:
 
@@ -83,6 +89,7 @@ Edit accordingly
 ```
 pip install -r requirements.txt
 ```
+
 
 ## End to End (E2E) Demo
 
@@ -204,6 +211,12 @@ python api-runner.py
 
 ```bash
 ./kcat-clear.sh review
+```
+
+To support the sandboxing of the code generation piece
+
+```bash
+pip install RestrictedPython
 ```
 
 ```bash
