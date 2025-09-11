@@ -82,7 +82,11 @@ chmod +x reset.sh
 cp .env.example .env
 ```
 
-Edit accordingly
+Edit accordingly.  I use a combination of ollama localhost and remote Red Hat hosted MaaS models/endpoints
+
+```
+ollama start
+```
 
 3. Install dependencies
 
