@@ -39,3 +39,27 @@ class PasswordResetResponse(BaseModel):
                 "email": "user@example.com"
             }
         }
+
+
+class ForgotUserIDResponse(BaseModel):
+    """
+    Model for forgot user id response.
+    """
+    message: str = Field(
+        ...,
+        description="Status message about the forogot userid  request",
+        example="Email reminder"
+    )
+    email: str = Field(
+        ...,
+        description="Email address to which the reset link was sent",
+        example="user@example.com"
+    )
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "message": "Remdinder email",
+                "email": "user@example.com"
+            }
+        }

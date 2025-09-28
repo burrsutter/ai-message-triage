@@ -37,8 +37,8 @@ KAFKA_INPUT_TOPIC=os.getenv("KAFKA_WEBSITE_INPUT_TOPIC")
 KAFKA_OUTPUT_TOPIC=os.getenv("KAFKA_OUTFLOW_TOPIC")
 KAFKA_REVIEW_TOPIC=os.getenv("KAFKA_REVIEW_TOPIC")
 
-API_HOST = os.getenv("PASSWORD_API_HOST")
-API_PORT = int(os.getenv("PASSWORD_API_PORT"))
+API_HOST = os.getenv("WEBSITE_API_HOST")
+API_PORT = int(os.getenv("WEBSITE_API_PORT"))
 
 logger.info(f"INFERENCE_SERVER_URL: {INFERENCE_SERVER_URL}")
 logger.info(f"MODEL_NAME: {MODEL_NAME}")
@@ -53,11 +53,8 @@ llmclient = OpenAI(
     base_url=INFERENCE_SERVER_URL
     )
 
-llmmessages = [
-    {"role": "system", "content": "You are a tool caller"},
-    {"role": "user", "content": "please reset my password burr@burrsutter.com"}
-]
 
+system_prompt = "You are an expert tool calling, review the user message and call the best matching tool"
 
 # --------------------------------------------------------------
 # Tool OpenAI definition 
@@ -71,10 +68,13 @@ tools = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "email": {"type": "string"},                    
+                    "email": {
+                        "type": "string",
+                        "description": "The email address of the customer who needs their password reset."
+                    }
                 },
                 "required": ["email"],
-                "additionalProperties": False,
+                "additionalProperties": False  
             },
             "strict": True,
         },
@@ -114,8 +114,8 @@ class MessageProcessor():
             KAFKA_INPUT_TOPIC,
             bootstrap_servers=KAFKA_BROKER,
             value_deserializer=lambda x: json.loads(x.decode('utf-8')),
-            auto_offset_reset='earliest', # aids debugging
-            # auto_offset_reset='latest',
+            # auto_offset_reset='earliest', # aids debugging
+            auto_offset_reset='latest',
             enable_auto_commit=False            
             # group_id='support_responder',            
         )
@@ -137,17 +137,11 @@ class MessageProcessor():
             # LLM Magic Happens
             # -------------------------------------------------------
             
-            user_message={
-                "role": "user",
-                "content": message.content
-            }
+            llmmessages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": message.content}
+            ]
             
-            # this to replace the test data including burr@burrsutter.com
-            for i, msg in enumerate(llmmessages):
-                if msg["role"] == "user":
-                    llmmessages[i]=user_message
-                    break
-
             response = llmclient.chat.completions.create(
                 model=MODEL_NAME,  
                 messages=llmmessages,

@@ -14,14 +14,14 @@ def main():
     load_dotenv()
     
     # Get configuration from environment variables with defaults
-    host = os.getenv("PASSWORD_API_HOST")
-    port = int(os.getenv("PASSWORD_API_PORT"))
+    host = os.getenv("WEBSITE_API_HOST")
+    port = int(os.getenv("WEBSITE_API_PORT"))
     
-    print(f"Starting Password Reset API on {host}:{port}")
+    print(f"Starting Website API on {host}:{port}")
     
     # Start the API server
     uvicorn.run(
-        "password-reset-api:app",
+        "website-api:app",
         host=host,
         port=port,
         reload=True
