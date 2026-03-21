@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, status
-from password_models import PasswordResetRequest, PasswordResetResponse
+from password_models import PasswordResetRequest, PasswordResetResponse, ForgotUserIDResponse
 
 app = FastAPI(
     title="Password Reset API",
