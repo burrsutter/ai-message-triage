@@ -1,0 +1,238 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: message-triage-structure
+  namespace: message-triage
+  labels: &structure-labels
+    app.kubernetes.io/name: message-triage-structure
+    app.kubernetes.io/component: agent
+    app.kubernetes.io/part-of: ai-message-triage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: message-triage-structure
+  template:
+    metadata:
+      labels: *structure-labels
+    spec:
+      containers:
+        - name: agent
+          image: image-registry.openshift-image-registry.svc:5000/message-triage/message-triage-backend:latest
+          imagePullPolicy: Always
+          command: ["python", "-m", "structure.message-structure"]
+          envFrom:
+            - configMapRef: {name: message-triage-agent-common}
+            - configMapRef: {name: message-triage-structure}
+            - secretRef: {name: message-triage-model-credentials}
+          resources:
+            requests: {cpu: 25m, memory: 96Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}
+            runAsNonRoot: true
+            seccompProfile: {type: RuntimeDefault}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: message-triage-guardian
+  namespace: message-triage
+  labels: &guardian-labels
+    app.kubernetes.io/name: message-triage-guardian
+    app.kubernetes.io/component: agent
+    app.kubernetes.io/part-of: ai-message-triage
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: message-triage-guardian}
+  template:
+    metadata: {labels: *guardian-labels}
+    spec:
+      containers:
+        - name: agent
+          image: image-registry.openshift-image-registry.svc:5000/message-triage/message-triage-backend:latest
+          imagePullPolicy: Always
+          command: ["python", "-m", "guardian.message-guardian"]
+          envFrom:
+            - configMapRef: {name: message-triage-agent-common}
+            - configMapRef: {name: message-triage-guardian}
+            - secretRef: {name: message-triage-model-credentials}
+          resources:
+            requests: {cpu: 25m, memory: 96Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}
+            runAsNonRoot: true
+            seccompProfile: {type: RuntimeDefault}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: message-triage-customer
+  namespace: message-triage
+  labels: &customer-labels
+    app.kubernetes.io/name: message-triage-customer
+    app.kubernetes.io/component: agent
+    app.kubernetes.io/part-of: ai-message-triage
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: message-triage-customer}
+  template:
+    metadata: {labels: *customer-labels}
+    spec:
+      containers:
+        - name: agent
+          image: image-registry.openshift-image-registry.svc:5000/message-triage/message-triage-backend:latest
+          imagePullPolicy: Always
+          command: ["python", "-m", "customer.customer-lookup"]
+          envFrom:
+            - configMapRef: {name: message-triage-agent-common}
+            - configMapRef: {name: message-triage-customer}
+          resources:
+            requests: {cpu: 25m, memory: 96Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}
+            runAsNonRoot: true
+            seccompProfile: {type: RuntimeDefault}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: message-triage-router
+  namespace: message-triage
+  labels: &router-labels
+    app.kubernetes.io/name: message-triage-router
+    app.kubernetes.io/component: agent
+    app.kubernetes.io/part-of: ai-message-triage
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: message-triage-router}
+  template:
+    metadata: {labels: *router-labels}
+    spec:
+      containers:
+        - name: agent
+          image: image-registry.openshift-image-registry.svc:5000/message-triage/message-triage-backend:latest
+          imagePullPolicy: Always
+          command: ["python", "-m", "router.message-router"]
+          envFrom:
+            - configMapRef: {name: message-triage-agent-common}
+            - configMapRef: {name: message-triage-router}
+            - secretRef: {name: message-triage-model-credentials}
+          resources:
+            requests: {cpu: 25m, memory: 96Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}
+            runAsNonRoot: true
+            seccompProfile: {type: RuntimeDefault}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: message-triage-support
+  namespace: message-triage
+  labels: &support-labels
+    app.kubernetes.io/name: message-triage-support
+    app.kubernetes.io/component: agent
+    app.kubernetes.io/part-of: ai-message-triage
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: message-triage-support}
+  template:
+    metadata: {labels: *support-labels}
+    spec:
+      containers:
+        - name: agent
+          image: image-registry.openshift-image-registry.svc:5000/message-triage/message-triage-backend:latest
+          imagePullPolicy: Always
+          command: ["python", "-m", "support.support-responder"]
+          envFrom:
+            - configMapRef: {name: message-triage-agent-common}
+            - configMapRef: {name: message-triage-support}
+            - secretRef: {name: message-triage-model-credentials}
+          resources:
+            requests: {cpu: 25m, memory: 96Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}
+            runAsNonRoot: true
+            seccompProfile: {type: RuntimeDefault}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: message-triage-finance
+  namespace: message-triage
+  labels: &finance-labels
+    app.kubernetes.io/name: message-triage-finance
+    app.kubernetes.io/component: agent
+    app.kubernetes.io/part-of: ai-message-triage
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: message-triage-finance}
+  template:
+    metadata: {labels: *finance-labels}
+    spec:
+      containers:
+        - name: agent
+          image: image-registry.openshift-image-registry.svc:5000/message-triage/message-triage-backend:latest
+          imagePullPolicy: Always
+          command: ["python", "-m", "finance.finance-responder"]
+          envFrom:
+            - configMapRef: {name: message-triage-agent-common}
+            - configMapRef: {name: message-triage-finance}
+            - secretRef: {name: message-triage-model-credentials}
+          resources:
+            requests: {cpu: 25m, memory: 96Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}
+            runAsNonRoot: true
+            seccompProfile: {type: RuntimeDefault}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: message-triage-website
+  namespace: message-triage
+  labels: &website-labels
+    app.kubernetes.io/name: message-triage-website
+    app.kubernetes.io/component: agent
+    app.kubernetes.io/part-of: ai-message-triage
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: message-triage-website}
+  template:
+    metadata: {labels: *website-labels}
+    spec:
+      containers:
+        - name: agent
+          image: image-registry.openshift-image-registry.svc:5000/message-triage/message-triage-backend:latest
+          imagePullPolicy: Always
+          command: ["python", "-m", "website.website-support"]
+          envFrom:
+            - configMapRef: {name: message-triage-agent-common}
+            - configMapRef: {name: message-triage-website}
+            - secretRef: {name: message-triage-model-credentials}
+          resources:
+            requests: {cpu: 25m, memory: 96Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}
+            runAsNonRoot: true
+            seccompProfile: {type: RuntimeDefault}

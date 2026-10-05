@@ -1,0 +1,15 @@
+# Red Hat OpenShift Service Mesh 3 operator (based on upstream Istio / Sail operator).
+# Installed cluster-wide via the existing global-operators OperatorGroup in
+# openshift-operators (AllNamespaces). Manages the sailoperator.io CRDs
+# (Istio, IstioRevision, IstioCNI, ZTunnel).
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: servicemeshoperator3
+  namespace: openshift-operators
+spec:
+  channel: stable
+  name: servicemeshoperator3
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic

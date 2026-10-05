@@ -1,0 +1,11 @@
+# istio-cni:    hosts the Istio CNI plugin DaemonSet (required on OpenShift)
+# istio-system: hosts the Istio control plane (istiod)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istio-cni
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: istio-system

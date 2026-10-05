@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: message-triage-review-to-sales
+  namespace: message-triage
+  labels: &review-to-sales-labels
+    app.kubernetes.io/name: message-triage-review-to-sales
+    app.kubernetes.io/component: agent
+    app.kubernetes.io/part-of: ai-message-triage
+    demo.redhat.com/phase: exception-handler
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: message-triage-review-to-sales}
+  template:
+    metadata: {labels: *review-to-sales-labels}
+    spec:
+      containers:
+        - name: agent
+          image: image-registry.openshift-image-registry.svc:5000/message-triage/message-triage-backend:latest
+          imagePullPolicy: Always
+          command: ["python", "-m", "opportunity.opportunity-finder"]
+          envFrom:
+            - configMapRef: {name: message-triage-agent-common}
+            - configMapRef: {name: message-triage-review-to-sales}
+            - secretRef: {name: message-triage-model-credentials}
+          resources:
+            requests: {cpu: 25m, memory: 96Mi}
+            limits: {cpu: 500m, memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}
+            runAsNonRoot: true
+            seccompProfile: {type: RuntimeDefault}

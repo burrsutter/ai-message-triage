@@ -97,10 +97,85 @@ pip install -r requirements.txt
 
 ## End to End (E2E) Demo
 
+### OpenShift deployment
+
+Deploy Kafka (when not already present), one pod per independent backend agent,
+the two internal tool APIs, HTTP intake, and the dashboard:
+
+```bash
+./openshift/deploy.sh
+```
+
+All namespaced `oc` commands explicitly target `message-triage`; the script does
+not change your active project. Each event-driven agent has its own Kafka consumer
+group and input/output topic configuration. The OpenShift demo uses the shared
+MaaS model configuration and runs customer lookup in passthrough mode and support
+without RAG, so external demo databases are not required. Localhost retains the
+original database-backed defaults.
+
+The dashboard is maintained independently in
+[`burrsutter/ai-message-triage-dashboard`](https://github.com/burrsutter/ai-message-triage-dashboard).
+The deployment builds it directly from that repository, so no nested dashboard
+checkout is required. Set `DASHBOARD_GIT_REF` to deploy a different pushed tag,
+branch, or commit.
+
+The initial deployment intentionally leaves review exceptions parked on the
+`review` topic. Later in the demonstration, add a new review-to-sales agent to
+show the system adapting dynamically:
+
+```bash
+./openshift/backend/deploy-review-to-sales.sh
+```
+
 ### Intake 
+
+The original directory watcher is still available:
 
 ```bash
 python -m intake.file-intake
+```
+
+There is also an HTTP intake service. It uses the same `FileProcessor`, publishes
+the same `OuterWrapper` message to Kafka, and moves accepted files to
+`$WATCH_DIRECTORY/done/<filename>.done`:
+
+```bash
+uvicorn intake.http_intake:app --host 0.0.0.0 --port 8080
+
+curl -X POST 'http://localhost:8080/intake?filename=demo-message.txt' \
+  -H 'Content-Type: text/plain' \
+  --data-binary 'I was charged twice for order 1234.'
+```
+
+JSON and multipart file uploads are supported too:
+
+```bash
+curl -X POST http://localhost:8080/intake \
+  -H 'Content-Type: application/json' \
+  -d '{"filename":"demo-message.txt","content":"I need help with my order."}'
+
+curl -X POST http://localhost:8080/intake \
+  -F 'file=@data/sample/finance/missing-invoice.txt'
+```
+
+Duplicate filenames return HTTP 409 so an existing `.done` artifact is never
+overwritten. See `openshift/intake/` for the OpenShift deployment, where the
+intake directory is an ephemeral `emptyDir` that resets with the pod.
+
+From the repository root, send any included sample by its path beneath
+`data/sample`:
+
+```bash
+./send.sh --list
+./send.sh finance/missing-invoice.txt
+```
+
+For zsh tab completion of the sample argument (including in iTerm2), load the
+repository completion once per shell:
+
+```bash
+autoload -Uz compinit && compinit
+source ./completions/send.zsh
 ```
 
 ```bash
@@ -122,6 +197,11 @@ python -m structure.message-structure
 ```bash
 python -m guardian.message-guardian
 ```
+
+`GUARDIAN_MODE=auto` preserves the original protocol for guardian-specific
+models and uses explicit structured safety prompts for general-purpose models.
+Set `GUARDIAN_MODE=prompted` when using a shared model such as `qwen3-235b`, or
+`GUARDIAN_MODE=specialized` to force the original guardian protocol.
 
 ```bash
 ./kcat-clear.sh cleared
@@ -276,4 +356,4 @@ The application uses Python's logging module with:
 
 ## License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE.txt](LICENSE.txt) file for details. 
+This project is licensed under the Apache License 2.0 - see the [LICENSE.txt](LICENSE.txt) file for details.

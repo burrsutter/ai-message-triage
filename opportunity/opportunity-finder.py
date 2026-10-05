@@ -6,13 +6,13 @@ from kafka import KafkaConsumer, KafkaProducer
 from dotenv import load_dotenv
 from openai import OpenAI
 from models import OuterWrapper
+from pydantic import BaseModel
 import json
 import os
 import logging
 from openai import OpenAI
 import re
 import sys
-from RestrictedPython import compile_restricted, safe_builtins
 import subprocess
 
 # Load env vars
@@ -22,9 +22,16 @@ KAFKA_INPUT_TOPIC=os.getenv("KAFKA_OPPORTUNITY_INPUT_TOPIC")
 KAFKA_OUTPUT_TOPIC=os.getenv("KAFKA_OPPORTUNITY_OUTPUT_TOPIC") 
 KAFKA_REVIEW_TOPIC=os.getenv("KAFKA_REVIEW_TOPIC")
 
-MODEL_NAME=os.getenv("OPPORTUNITY_MODEL_NAME")
-API_KEY=os.getenv("OPPORTUNITY_API_KEY")
-INFERENCE_SERVER_URL=os.getenv("OPPORTUNITY_SERVER_URL")
+MODEL_NAME=os.getenv("OPPORTUNITY_MODEL_NAME") or os.getenv("MODEL_NAME")
+API_KEY=os.getenv("OPPORTUNITY_API_KEY") or os.getenv("API_KEY")
+INFERENCE_SERVER_URL=os.getenv("OPPORTUNITY_SERVER_URL") or os.getenv("INFERENCE_SERVER_URL")
+CODE_EXECUTION_ENABLED=os.getenv("OPPORTUNITY_CODE_EXECUTION_ENABLED", "true").lower() == "true"
+OPPORTUNITY_MODE=os.getenv("OPPORTUNITY_MODE", "generated-code").lower()
+
+
+class SalesDecision(BaseModel):
+    sales_opportunity: bool
+    reason: str
 
 
 client = OpenAI(
@@ -63,8 +70,8 @@ class MessageProcessor():
             bootstrap_servers=KAFKA_BROKER,
             value_deserializer=lambda x: json.loads(x.decode('utf-8')),
             # auto_offset_reset='latest',
-            auto_offset_reset='earliest',
-            # group_id='opportunity_finder',
+            auto_offset_reset=os.getenv("KAFKA_AUTO_OFFSET_RESET", "earliest"),
+            group_id=os.getenv("KAFKA_OPPORTUNITY_GROUP_ID"),
             enable_auto_commit=True
         )
 
@@ -88,6 +95,31 @@ class MessageProcessor():
     def process(self, message:OuterWrapper) -> OuterWrapper:
         try:
             logger.info("LLM Processing: " + message.content)
+
+            if OPPORTUNITY_MODE == "route-to-sales":
+                completion = client.beta.chat.completions.parse(
+                    model=MODEL_NAME,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": (
+                                "Decide whether this reviewed exception contains a sales opportunity, "
+                                "such as purchase, pricing, bulk order, discount, or buying intent."
+                            ),
+                        },
+                        {"role": "user", "content": message.content},
+                    ],
+                    response_format=SalesDecision,
+                    temperature=0.0,
+                )
+                decision = completion.choices[0].message.parsed
+                if decision and decision.sales_opportunity:
+                    message.comment = f"review-to-sales: {decision.reason}"
+                    self.producer.send(KAFKA_OUTPUT_TOPIC, message.model_dump()).get(timeout=10)
+                    logger.info("Review exception routed to %s: %s", KAFKA_OUTPUT_TOPIC, decision.reason)
+                else:
+                    logger.info("Review exception was not a sales opportunity")
+                return message
 
             # Asking LLMs to generate code that you then execute adds risk
             # This use the subprocess technique which is considered to be safer than the exec function
@@ -118,7 +150,7 @@ class MessageProcessor():
 
             def send_to_sales_kafka(message):
               producer = KafkaProducer(
-                bootstrap_servers='localhost:9092',
+                bootstrap_servers='{KAFKA_BROKER}',
               )
               wrapped_message = OpportunityWrapper(
                 content=message
@@ -163,7 +195,7 @@ class MessageProcessor():
             # -------------------------------------------------------
             # CodeExec 
             # -------------------------------------------------------
-            if python_code:
+            if python_code and CODE_EXECUTION_ENABLED:
                 logger.info("We found some code, let's party!")
                 process = subprocess.Popen(
                     [sys.executable, "-c", python_code],
@@ -176,6 +208,8 @@ class MessageProcessor():
                     logger.error(f"Execution Error: {stderr}")
                 if stdout:
                     logger.info(f"stdout: {stdout}")
+            elif python_code:
+                logger.warning("Generated code was not executed because OPPORTUNITY_CODE_EXECUTION_ENABLED=false")
             
             # Just return what was sent in, unchanged, the LLM determines if it needed to be sent out
             return message

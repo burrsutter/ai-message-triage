@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: message-triage-finance-api
+  namespace: message-triage
+  labels: &finance-api-labels
+    app.kubernetes.io/name: message-triage-finance-api
+    app.kubernetes.io/component: tool-api
+    app.kubernetes.io/part-of: ai-message-triage
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: message-triage-finance-api}
+  template:
+    metadata: {labels: *finance-api-labels}
+    spec:
+      containers:
+        - name: api
+          image: image-registry.openshift-image-registry.svc:5000/message-triage/message-triage-backend:latest
+          imagePullPolicy: Always
+          command: ["uvicorn", "finance-api:app", "--app-dir", "/opt/app/finance", "--host", "0.0.0.0", "--port", "8002"]
+          ports:
+            - {name: http, containerPort: 8002}
+          readinessProbe:
+            httpGet: {path: /, port: http}
+          livenessProbe:
+            httpGet: {path: /, port: http}
+            initialDelaySeconds: 10
+          resources:
+            requests: {cpu: 25m, memory: 64Mi}
+            limits: {cpu: 250m, memory: 192Mi}
+          securityContext: &api-security
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}
+            runAsNonRoot: true
+            seccompProfile: {type: RuntimeDefault}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: message-triage-finance-api
+  namespace: message-triage
+  labels:
+    app.kubernetes.io/name: message-triage-finance-api
+    app.kubernetes.io/component: tool-api
+    app.kubernetes.io/part-of: ai-message-triage
+spec:
+  selector: {app.kubernetes.io/name: message-triage-finance-api}
+  ports:
+    - {name: http, port: 8002, targetPort: http}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: message-triage-website-api
+  namespace: message-triage
+  labels: &website-api-labels
+    app.kubernetes.io/name: message-triage-website-api
+    app.kubernetes.io/component: tool-api
+    app.kubernetes.io/part-of: ai-message-triage
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: message-triage-website-api}
+  template:
+    metadata: {labels: *website-api-labels}
+    spec:
+      containers:
+        - name: api
+          image: image-registry.openshift-image-registry.svc:5000/message-triage/message-triage-backend:latest
+          imagePullPolicy: Always
+          command: ["uvicorn", "website-api:app", "--app-dir", "/opt/app/website", "--host", "0.0.0.0", "--port", "8001"]
+          ports:
+            - {name: http, containerPort: 8001}
+          readinessProbe:
+            httpGet: {path: /, port: http}
+          livenessProbe:
+            httpGet: {path: /, port: http}
+            initialDelaySeconds: 10
+          resources:
+            requests: {cpu: 25m, memory: 64Mi}
+            limits: {cpu: 250m, memory: 192Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: ["ALL"]}
+            runAsNonRoot: true
+            seccompProfile: {type: RuntimeDefault}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: message-triage-website-api
+  namespace: message-triage
+  labels:
+    app.kubernetes.io/name: message-triage-website-api
+    app.kubernetes.io/component: tool-api
+    app.kubernetes.io/part-of: ai-message-triage
+spec:
+  selector: {app.kubernetes.io/name: message-triage-website-api}
+  ports:
+    - {name: http, port: 8001, targetPort: http}

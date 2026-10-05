@@ -1,0 +1,111 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: message-triage-agent-common
+  namespace: message-triage
+  labels:
+    app.kubernetes.io/part-of: ai-message-triage
+data:
+  KAFKA_BROKER: message-triage-kafka-kafka-bootstrap.message-triage.svc:9092
+  KAFKA_AUTO_OFFSET_RESET: earliest
+  INFERENCE_SERVER_URL: https://maas-rhdp.apps.maas.redhatworkshops.io/v1
+  MODEL_NAME: qwen3-235b
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: message-triage-structure
+  namespace: message-triage
+data:
+  KAFKA_STRUCTURE_INPUT_TOPIC: intake
+  KAFKA_STRUCTURE_OUTPUT_TOPIC: structured
+  KAFKA_REVIEW_TOPIC: review
+  KAFKA_STRUCTURE_GROUP_ID: message-triage-structure
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: message-triage-guardian
+  namespace: message-triage
+data:
+  KAFKA_GUARDIAN_INPUT_TOPIC: structured
+  KAFKA_GUARDIAN_OUTPUT_TOPIC: cleared
+  KAFKA_REVIEW_TOPIC: review
+  KAFKA_GUARDIAN_GROUP_ID: message-triage-guardian
+  GUARDIAN_MODE: prompted
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: message-triage-customer
+  namespace: message-triage
+data:
+  KAFKA_CUSTOMER_INPUT_TOPIC: cleared
+  KAFKA_CUSTOMER_OUTPUT_TOPIC: ready
+  KAFKA_REVIEW_TOPIC: review
+  KAFKA_CUSTOMER_GROUP_ID: message-triage-customer
+  CUSTOMER_LOOKUP_MODE: passthrough
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: message-triage-router
+  namespace: message-triage
+data:
+  KAFKA_ROUTER_INPUT_TOPIC: ready
+  KAFKA_ROUTER_OUTPUT_SUPPORT_TOPIC: support
+  KAFKA_ROUTER_OUTPUT_FINANCE_TOPIC: finance
+  KAFKA_ROUTER_OUTPUT_WEBSITE_TOPIC: website
+  KAFKA_REVIEW_TOPIC: review
+  KAFKA_ROUTER_GROUP_ID: message-triage-router
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: message-triage-support
+  namespace: message-triage
+data:
+  KAFKA_SUPPORT_INPUT_TOPIC: support
+  KAFKA_OUTFLOW_TOPIC: outflow
+  KAFKA_REVIEW_TOPIC: review
+  KAFKA_SUPPORT_GROUP_ID: message-triage-support
+  SUPPORT_RAG_ENABLED: "false"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: message-triage-finance
+  namespace: message-triage
+data:
+  KAFKA_FINANCE_INPUT_TOPIC: finance
+  KAFKA_OUTFLOW_TOPIC: outflow
+  KAFKA_REVIEW_TOPIC: review
+  KAFKA_FINANCE_GROUP_ID: message-triage-finance
+  FINANCE_API_HOST: message-triage-finance-api
+  FINANCE_API_PORT: "8002"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: message-triage-website
+  namespace: message-triage
+data:
+  KAFKA_WEBSITE_INPUT_TOPIC: website
+  KAFKA_OUTFLOW_TOPIC: outflow
+  KAFKA_REVIEW_TOPIC: review
+  KAFKA_WEBSITE_GROUP_ID: message-triage-website
+  WEBSITE_API_HOST: message-triage-website-api
+  WEBSITE_API_PORT: "8001"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: message-triage-review-to-sales
+  namespace: message-triage
+data:
+  KAFKA_OPPORTUNITY_INPUT_TOPIC: review
+  KAFKA_OPPORTUNITY_OUTPUT_TOPIC: sales
+  KAFKA_REVIEW_TOPIC: review
+  KAFKA_OPPORTUNITY_GROUP_ID: message-triage-review-to-sales
+  OPPORTUNITY_MODE: route-to-sales
+  OPPORTUNITY_CODE_EXECUTION_ENABLED: "false"

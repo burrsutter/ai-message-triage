@@ -23,9 +23,9 @@ KAFKA_ROUTER_OUTPUT_FINANCE_TOPIC=os.getenv("KAFKA_ROUTER_OUTPUT_FINANCE_TOPIC")
 KAFKA_ROUTER_OUTPUT_WEBSITE_TOPIC=os.getenv("KAFKA_ROUTER_OUTPUT_WEBSITE_TOPIC")
 
 KAFKA_REVIEW_TOPIC=os.getenv("KAFKA_REVIEW_TOPIC")
-MODEL_NAME=os.getenv("ROUTER_MODEL_NAME")
-API_KEY=os.getenv("ROUTER_API_KEY")
-INFERENCE_SERVER_URL=os.getenv("ROUTER_SERVER_URL")
+MODEL_NAME=os.getenv("ROUTER_MODEL_NAME") or os.getenv("MODEL_NAME")
+API_KEY=os.getenv("ROUTER_API_KEY") or os.getenv("API_KEY")
+INFERENCE_SERVER_URL=os.getenv("ROUTER_SERVER_URL") or os.getenv("INFERENCE_SERVER_URL")
 
 client = OpenAI(
     api_key=API_KEY,
@@ -64,8 +64,8 @@ class MessageProcessor():
             KAFKA_INPUT_TOPIC,
             bootstrap_servers=KAFKA_BROKER,
             value_deserializer=lambda x: json.loads(x.decode('utf-8')),
-            auto_offset_reset='latest',
-            group_id='message_router',
+            auto_offset_reset=os.getenv("KAFKA_AUTO_OFFSET_RESET", "latest"),
+            group_id=os.getenv("KAFKA_ROUTER_GROUP_ID", "message_router"),
             enable_auto_commit=True
         )
 

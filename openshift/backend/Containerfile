@@ -1,0 +1,20 @@
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /opt/app
+COPY requirements-backend.txt ./requirements-backend.txt
+RUN pip install --no-cache-dir -r requirements-backend.txt
+COPY models ./models
+COPY structure ./structure
+COPY guardian ./guardian
+COPY customer ./customer
+COPY router ./router
+COPY support ./support
+COPY finance ./finance
+COPY website ./website
+COPY opportunity ./opportunity
+RUN chgrp -R 0 /opt/app && chmod -R g=u /opt/app
+
+USER 1001

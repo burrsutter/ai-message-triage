@@ -28,17 +28,17 @@ logging.getLogger("kafka.conn").setLevel(logging.WARNING)
 # Load env vars
 load_dotenv()
 
-API_KEY=os.getenv("FINANCE_API_KEY")
-INFERENCE_SERVER_URL=os.getenv("FINANCE_SERVER_URL")
-MODEL_NAME=os.getenv("FINANCE_MODEL_NAME")
+API_KEY=os.getenv("FINANCE_API_KEY") or os.getenv("API_KEY")
+INFERENCE_SERVER_URL=os.getenv("FINANCE_SERVER_URL") or os.getenv("INFERENCE_SERVER_URL")
+MODEL_NAME=os.getenv("FINANCE_MODEL_NAME") or os.getenv("MODEL_NAME")
 
 KAFKA_BROKER=os.getenv("KAFKA_BROKER")
 KAFKA_INPUT_TOPIC=os.getenv("KAFKA_FINANCE_INPUT_TOPIC")
 KAFKA_OUTPUT_TOPIC=os.getenv("KAFKA_OUTFLOW_TOPIC")
 KAFKA_REVIEW_TOPIC=os.getenv("KAFKA_REVIEW_TOPIC")
 
-API_HOST = os.getenv("FINANCE_API_HOST")
-API_PORT = int(os.getenv("FINANCE_API_PORT"))
+API_HOST = os.getenv("FINANCE_API_HOST", "127.0.0.1")
+API_PORT = int(os.getenv("FINANCE_API_PORT", "8002"))
 
 logger.info(f"INFERENCE_SERVER_URL: {INFERENCE_SERVER_URL}")
 logger.info(f"MODEL_NAME: {MODEL_NAME}")
@@ -176,7 +176,7 @@ def get_invoice_history(email):
     payload = {"email": email}
     try:
         response = requests.post(finance_api_url,json=payload)
-        logger.info(f"\get_invoice_history invoked: {email}")
+        logger.info(f"get_invoice_history invoked: {email}")
         # logger.info(f"for API: {finance_api_url}\n")
 
     except requests.exceptions.RequestException as e:
@@ -192,7 +192,7 @@ def start_duplicate_charge_dispute(email):
     payload = {"email": email}
     try:
         response = requests.post(finance_api_url,json=payload)
-        logger.info(f"\start_duplicate_charge_dispute: {email}")
+        logger.info(f"start_duplicate_charge_dispute: {email}")
         # logger.info(f"for API: {finance_api_url}\n")
 
     except requests.exceptions.RequestException as e:
@@ -225,7 +225,8 @@ class MessageProcessor():
             KAFKA_INPUT_TOPIC,
             bootstrap_servers=KAFKA_BROKER,
             value_deserializer=lambda x: json.loads(x.decode('utf-8')),
-            auto_offset_reset='earliest', # aids debugging
+            auto_offset_reset=os.getenv("KAFKA_AUTO_OFFSET_RESET", "earliest"),
+            group_id=os.getenv("KAFKA_FINANCE_GROUP_ID"),
             # auto_offset_reset='latest',
             enable_auto_commit=False # aids debugging
             # group_id='support_responder',            

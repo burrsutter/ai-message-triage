@@ -1,0 +1,56 @@
+# The Kafka cluster itself. Named "message-triage-kafka" so Kafka-related
+# resources are easy to identify. The internal bootstrap service is
+# message-triage-kafka-kafka-bootstrap.message-triage.svc:9092
+#
+# Annotations:
+#   strimzi.io/node-pools: enabled  -> use KafkaNodePool CRs (03-kafka-node-pool.yaml)
+#   strimzi.io/kraft: enabled       -> KRaft mode, no ZooKeeper
+#
+# When node pools are enabled, spec.kafka.replicas and spec.kafka.storage are
+# ignored (they live in the KafkaNodePool instead) and are omitted here.
+apiVersion: kafka.strimzi.io/v1
+kind: Kafka
+metadata:
+  name: message-triage-kafka
+  namespace: message-triage
+  annotations:
+    strimzi.io/node-pools: enabled
+    strimzi.io/kraft: enabled
+spec:
+  kafka:
+    listeners:
+      # Internal PLAINTEXT listener. This is what the Python agents use when they
+      # run INSIDE the cluster -- no code or TLS changes required.
+      #   KAFKA_BROKER=message-triage-kafka-kafka-bootstrap.message-triage.svc:9092
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+      # Internal TLS listener (optional, for TLS-aware in-cluster clients).
+      - name: tls
+        port: 9093
+        type: internal
+        tls: true
+      # External listener via OpenShift Route (TLS passthrough on 443). Use this
+      # to reach Kafka from a laptop. NOTE: routes are always TLS, so the Python
+      # code must be updated to security_protocol='SSL' + the cluster CA cert.
+      # See OPENSHIFT.md "Option B: external access".
+      - name: external
+        port: 9094
+        type: route
+        tls: true
+    config:
+      # Single broker -> everything replicated once.
+      offsets.topic.replication.factor: 1
+      transaction.state.log.replication.factor: 1
+      transaction.state.log.min.isr: 1
+      default.replication.factor: 1
+      min.insync.replicas: 1
+    jvmOptions:
+      -Xms: 1024m
+      -Xmx: 1024m
+  # The Entity Operator runs the Topic Operator so the KafkaTopic CRs in
+  # 05-kafka-topics.yaml are reconciled into real Kafka topics automatically.
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}

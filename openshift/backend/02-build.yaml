@@ -1,0 +1,77 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: message-triage-backend
+  namespace: message-triage
+  labels:
+    app.kubernetes.io/name: message-triage-backend
+    app.kubernetes.io/part-of: ai-message-triage
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: message-triage-backend
+  namespace: message-triage
+  labels:
+    app.kubernetes.io/name: message-triage-backend
+    app.kubernetes.io/part-of: ai-message-triage
+spec:
+  runPolicy: Serial
+  source:
+    type: Dockerfile
+    dockerfile: |-
+      FROM python:3.12-slim
+      ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+      WORKDIR /opt/app
+      COPY requirements-backend.txt ./requirements-backend.txt
+      RUN pip install --no-cache-dir -r requirements-backend.txt
+      COPY models ./models
+      COPY structure ./structure
+      COPY guardian ./guardian
+      COPY customer ./customer
+      COPY router ./router
+      COPY support ./support
+      COPY finance ./finance
+      COPY website ./website
+      COPY opportunity ./opportunity
+      RUN chgrp -R 0 /opt/app && chmod -R g=u /opt/app
+      USER 1001
+    configMaps:
+      - configMap:
+          name: message-triage-backend-build-root
+      - configMap:
+          name: message-triage-backend-build-models
+        destinationDir: models
+      - configMap:
+          name: message-triage-backend-build-structure
+        destinationDir: structure
+      - configMap:
+          name: message-triage-backend-build-guardian
+        destinationDir: guardian
+      - configMap:
+          name: message-triage-backend-build-customer
+        destinationDir: customer
+      - configMap:
+          name: message-triage-backend-build-router
+        destinationDir: router
+      - configMap:
+          name: message-triage-backend-build-support
+        destinationDir: support
+      - configMap:
+          name: message-triage-backend-build-finance
+        destinationDir: finance
+      - configMap:
+          name: message-triage-backend-build-website
+        destinationDir: website
+      - configMap:
+          name: message-triage-backend-build-opportunity
+        destinationDir: opportunity
+  strategy:
+    type: Docker
+    dockerStrategy: {}
+  output:
+    to:
+      kind: ImageStreamTag
+      name: message-triage-backend:latest
+  successfulBuildsHistoryLimit: 2
+  failedBuildsHistoryLimit: 2

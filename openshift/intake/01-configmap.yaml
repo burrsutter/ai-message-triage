@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: message-triage-http-intake
+  namespace: message-triage
+  labels:
+    app.kubernetes.io/name: message-triage-http-intake
+    app.kubernetes.io/part-of: ai-message-triage
+data:
+  KAFKA_BROKER: message-triage-kafka-kafka-bootstrap.message-triage.svc:9092
+  KAFKA_INTAKE_TOPIC: intake
+  WATCH_DIRECTORY: /data/intake
+  HTTP_INTAKE_MAX_BYTES: "1048576"

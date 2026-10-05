@@ -1,0 +1,8 @@
+email-validator==2.2.0
+fastapi==0.115.11
+kafka-python==2.0.6
+openai==1.65.3
+pydantic==2.10.6
+python-dotenv==1.0.1
+requests==2.32.3
+uvicorn==0.34.0

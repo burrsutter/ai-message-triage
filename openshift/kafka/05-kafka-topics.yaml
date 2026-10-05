@@ -1,0 +1,152 @@
+# The 12 topics the ai-message-triage pipeline uses, declared as KafkaTopic CRs
+# and reconciled by the Topic Operator. These mirror reset.sh / .env.example:
+# all partitions=1, replicas=1 (single-broker dev cluster).
+#
+# Pipeline flow:
+#   intake -> structured -> cleared -> ready -> {support|finance|website} -> outflow
+#   ready/review -> sales   (opportunity finder)
+#   input/output are legacy/test topics; review holds messages that need attention.
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: kafka-input
+  namespace: message-triage
+  labels:
+    strimzi.io/cluster: message-triage-kafka
+spec:
+  topicName: input
+  partitions: 1
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: kafka-output
+  namespace: message-triage
+  labels:
+    strimzi.io/cluster: message-triage-kafka
+spec:
+  topicName: output
+  partitions: 1
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: kafka-review
+  namespace: message-triage
+  labels:
+    strimzi.io/cluster: message-triage-kafka
+spec:
+  topicName: review
+  partitions: 1
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: kafka-intake
+  namespace: message-triage
+  labels:
+    strimzi.io/cluster: message-triage-kafka
+spec:
+  topicName: intake
+  partitions: 1
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: kafka-structured
+  namespace: message-triage
+  labels:
+    strimzi.io/cluster: message-triage-kafka
+spec:
+  topicName: structured
+  partitions: 1
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: kafka-cleared
+  namespace: message-triage
+  labels:
+    strimzi.io/cluster: message-triage-kafka
+spec:
+  topicName: cleared
+  partitions: 1
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: kafka-ready
+  namespace: message-triage
+  labels:
+    strimzi.io/cluster: message-triage-kafka
+spec:
+  topicName: ready
+  partitions: 1
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: kafka-support
+  namespace: message-triage
+  labels:
+    strimzi.io/cluster: message-triage-kafka
+spec:
+  topicName: support
+  partitions: 1
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: kafka-finance
+  namespace: message-triage
+  labels:
+    strimzi.io/cluster: message-triage-kafka
+spec:
+  topicName: finance
+  partitions: 1
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: kafka-website
+  namespace: message-triage
+  labels:
+    strimzi.io/cluster: message-triage-kafka
+spec:
+  topicName: website
+  partitions: 1
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: kafka-sales
+  namespace: message-triage
+  labels:
+    strimzi.io/cluster: message-triage-kafka
+spec:
+  topicName: sales
+  partitions: 1
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: kafka-outflow
+  namespace: message-triage
+  labels:
+    strimzi.io/cluster: message-triage-kafka
+spec:
+  topicName: outflow
+  partitions: 1
+  replicas: 1

@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: message-triage-http-intake
+  namespace: message-triage
+  labels:
+    app.kubernetes.io/name: message-triage-http-intake
+    app.kubernetes.io/part-of: ai-message-triage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: message-triage-http-intake
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: message-triage-http-intake
+        app.kubernetes.io/part-of: ai-message-triage
+    spec:
+      containers:
+        - name: http-intake
+          image: image-registry.openshift-image-registry.svc:5000/message-triage/message-triage-http-intake:latest
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: message-triage-http-intake
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 96Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: intake
+              mountPath: /data/intake
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: intake
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: message-triage-http-intake
+  namespace: message-triage
+  labels:
+    app.kubernetes.io/name: message-triage-http-intake
+    app.kubernetes.io/part-of: ai-message-triage
+spec:
+  selector:
+    app.kubernetes.io/name: message-triage-http-intake
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: message-triage-http-intake
+  namespace: message-triage
+  labels:
+    app.kubernetes.io/name: message-triage-http-intake
+    app.kubernetes.io/part-of: ai-message-triage
+spec:
+  to:
+    kind: Service
+    name: message-triage-http-intake
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

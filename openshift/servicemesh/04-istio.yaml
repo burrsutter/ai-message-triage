@@ -1,0 +1,13 @@
+# The Istio control plane (istiod) running in istio-system.
+# updateStrategy InPlace = upgrade the running control plane in place (simplest;
+# the alternative RevisionBased runs canary revisions side by side).
+apiVersion: sailoperator.io/v1
+kind: Istio
+metadata:
+  name: default
+spec:
+  namespace: istio-system
+  version: v1.30.4
+  updateStrategy:
+    type: InPlace
+    inactiveRevisionDeletionGracePeriodSeconds: 30

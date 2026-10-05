@@ -6,11 +6,10 @@ from kafka import KafkaConsumer, KafkaProducer
 from dotenv import load_dotenv
 from openai import OpenAI
 from models import OuterWrapper
-from models import StructuredObject
+from guardian.classifier import POLICIES, classify_content, resolve_guardian_mode
 import json
 import os
 import logging
-from openai import OpenAI
 
 
 # Load env vars
@@ -20,14 +19,12 @@ KAFKA_INPUT_TOPIC=os.getenv("KAFKA_GUARDIAN_INPUT_TOPIC")
 KAFKA_OUTPUT_TOPIC=os.getenv("KAFKA_GUARDIAN_OUTPUT_TOPIC")
 KAFKA_REVIEW_TOPIC=os.getenv("KAFKA_REVIEW_TOPIC")
 
-MODEL_NAME=os.getenv("GUARDIAN_MODEL_NAME")
-API_KEY=os.getenv("GUARDIAN_API_KEY")
-INFERENCE_SERVER_URL=os.getenv("GUARDIAN_SERVER_URL")
+MODEL_NAME=os.getenv("GUARDIAN_MODEL_NAME") or os.getenv("MODEL_NAME")
+API_KEY=os.getenv("GUARDIAN_API_KEY") or os.getenv("API_KEY")
+INFERENCE_SERVER_URL=os.getenv("GUARDIAN_SERVER_URL") or os.getenv("INFERENCE_SERVER_URL")
+GUARDIAN_MODE=os.getenv("GUARDIAN_MODE", "auto")
 
-client = OpenAI(
-    api_key=API_KEY,
-    base_url=INFERENCE_SERVER_URL
-    )
+client = OpenAI(api_key=API_KEY, base_url=INFERENCE_SERVER_URL)
 
 
 # Set up logging configuration
@@ -45,11 +42,7 @@ logger.info(f"Kafka input topic: {KAFKA_INPUT_TOPIC}")
 logger.info(f"Kafka output topic: {KAFKA_OUTPUT_TOPIC}")
 logger.info(f"Inference Server: {INFERENCE_SERVER_URL}")
 logger.info(f"Model: {MODEL_NAME}")
-
-llmclient = OpenAI(
-    api_key=API_KEY,
-    base_url=INFERENCE_SERVER_URL
-    )
+logger.info(f"Guardian mode: {resolve_guardian_mode(MODEL_NAME, GUARDIAN_MODE)}")
 
 # -------------------------------------------------------
 # Debugging function
@@ -77,7 +70,8 @@ class MessageProcessor():
             KAFKA_INPUT_TOPIC,
             bootstrap_servers=KAFKA_BROKER,
             value_deserializer=lambda x: json.loads(x.decode('utf-8')),
-            auto_offset_reset='latest',
+            auto_offset_reset=os.getenv("KAFKA_AUTO_OFFSET_RESET", "latest"),
+            group_id=os.getenv("KAFKA_GUARDIAN_GROUP_ID"),
             enable_auto_commit=True
         )
 
@@ -88,61 +82,34 @@ class MessageProcessor():
 
     # Takes the input, modifies, returns it back    
     def process(self, message:OuterWrapper) -> OuterWrapper:
-        try:
-            logger.info("LLM Processing: " + message.content)
+        logger.info("LLM Processing: " + message.content)
+        if message.error is None:
+            message.error = []
 
-            # -------------------------------------------------------
-            # LLM Magic Happens
-            # -------------------------------------------------------
-            system_test="violence"
-            completion = client.chat.completions.create(
-                model=MODEL_NAME, # granite3-guardian:8b-fp16
-                    messages=[
-                    { "role": "system","content": system_test },
-                    { "role": "user", "content": message.content, },
-                    ],
-            )
-            response = completion.choices[0].message.content
-            logger.info(f"violence {response}")
-            if (response == "Yes"):                 
-                message.error.append(f"guardian:{system_test}")
+        for category in POLICIES:
+            try:
+                decision = classify_content(
+                    client=client,
+                    model_name=MODEL_NAME,
+                    category=category,
+                    content=message.content,
+                    mode=GUARDIAN_MODE,
+                )
+                logger.info(
+                    "Guardian decision category=%s unsafe=%s reason=%s",
+                    category,
+                    decision.unsafe,
+                    decision.reason,
+                )
+                if decision.unsafe:
+                    message.error.append(f"guardian:{category}")
+            except Exception as e:
+                # A safety service must not silently clear a message it could not
+                # classify. Mark the result indeterminate so it is sent to review.
+                logger.error("Guardian classification failed for %s: %s", category, e)
+                message.error.append(f"guardian:{category}:classification_error")
 
-            system_test="social_bias"
-            completion = client.chat.completions.create(
-                model=MODEL_NAME, 
-                    messages=[
-                    { "role": "system","content": system_test },
-                    { "role": "user", "content": message.content, },
-                    ],
-            )
-            response = completion.choices[0].message.content
-            logger.info(f"social_bias {response}")
-            if (response == "Yes"):                 
-                message.error.append(f"guardian:{system_test}")
-
-            system_test="profanity"
-            completion = client.chat.completions.create(
-                model=MODEL_NAME, 
-                    messages=[
-                    { "role": "system","content": system_test },
-                    { "role": "user", "content": message.content, },
-                    ],
-            )
-            response = completion.choices[0].message.content
-            logger.info(f"profanity {response}")
-            if (response == "Yes"):                 
-                message.error.append(f"guardian:{system_test}")
-
-
-            # -------------------------------------------------------
-            # LLM Magic Happens
-            # -------------------------------------------------------
-
-            return message
-        except Exception as e:
-            # Need to say something about what when wrong
-            logger.error(f"Exception in LLM Processing: {e}")
-            return message
+        return message
     
     def to_review(self, message: OuterWrapper):
         try:

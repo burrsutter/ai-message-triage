@@ -1,0 +1,13 @@
+# Knative Serving = serverless request-driven containers (scale-to-zero, revisions,
+# autoscaling). Lives in the knative-serving namespace; the operator reconciles it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: knative-serving
+---
+apiVersion: operator.knative.dev/v1beta1
+kind: KnativeServing
+metadata:
+  name: knative-serving
+  namespace: knative-serving
+spec: {}

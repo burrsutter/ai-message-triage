@@ -11,3 +11,8 @@ __pycache__/
 *.pyz
 *.pywz
 *.pyzw
+test-results/
+
+# The dashboard is maintained in its own repository. A local checkout may live
+# here for development, but it is not part of this repository.
+/dashboard/

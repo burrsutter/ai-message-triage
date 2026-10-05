@@ -1,14 +1,14 @@
-import dotenv
-from models import OuterWrapper
-from kafka import KafkaProducer
 import logging
 import os
 import sys
-import json
 import time
 from pathlib import Path
+
+import dotenv
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+
+from intake.processor import FileProcessor, KafkaHandler
 
 # Set up logging configuration
 logging.basicConfig(
@@ -42,100 +42,6 @@ if not watch_dir.exists():
 logger.info(f"Watching directory: {WATCH_DIRECTORY}")
 logger.info(f"Kafka bootstrap servers: {KAFKA_BROKER}")
 logger.info(f"Kafka topic: {KAFKA_INTAKE_TOPIC}")
-
-
-class KafkaHandler:
-    """Handler for Kafka operations."""
-    
-    def __init__(self, bootstrap_servers: str, topic: str):
-        """Initialize the Kafka handler."""
-        self.topic = topic
-        try:
-            self.producer = KafkaProducer(
-                bootstrap_servers=bootstrap_servers,
-                value_serializer=lambda v: json.dumps(v, default=str).encode('utf-8')
-            )
-            logger.info("Kafka producer initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize Kafka producer: {e}")
-            raise
-
-
-    def send_message(self, message: OuterWrapper):
-        """Send a message to the Kafka topic."""
-        try:
-            self.producer.send(self.topic, message.model_dump())
-            # Wait for the message to be delivered
-            self.producer.flush()
-            logger.info(f"Message sent to {self.topic}")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to send message to Kafka: {e}")
-            return False
-
-class FileProcessor:
-    """Processor for handling files."""
-    
-    def __init__(self, kafka_handler: KafkaHandler):
-        """Initialize the file processor."""
-        self.kafka_handler = kafka_handler
-
-    def process_file(self, file_path: Path) -> bool:
-        """
-        Process a file by reading its contents, wrapping it in a Pydantic model,
-        and sending it to Kafka.
-        
-        Args:
-            file_path: Path to the file to process
-            
-        Returns:
-            bool: True if processing was successful, False otherwise
-        """
-        try:
-            # Skip files that have already been processed
-            if file_path.suffix == ".done":
-                return False
-                
-            logger.info(f"Processing file: {file_path}")
-            
-            # Read file contents
-            with open(file_path, 'r') as f:
-                content = f.read()
-            
-            # Create Pydantic model with a unique ID
-            file_content = OuterWrapper(
-                id=str(file_path.stat().st_ino),  # Using inode number as unique ID
-                filename=file_path.name,
-                content=content,
-                metadata={
-                    "original_path": str(file_path),
-                    "size_bytes": file_path.stat().st_size,
-                    "created_timestamp": file_path.stat().st_ctime,
-                    "modified_timestamp": file_path.stat().st_mtime
-                }
-            )
-            
-            # Serialize and send to Kafka
-            success = self.kafka_handler.send_message(file_content)
-            
-            if success:
-                # Create a "done" subdirectory if it doesn't exist
-                done_dir = file_path.parent / "done"
-                done_dir.mkdir(exist_ok=True)
-                
-                # Rename the file by changing its suffix to ".done" and move it to the "done" subdirectory
-                new_filename = file_path.name + ".done"
-                new_path = done_dir / new_filename
-                file_path.rename(new_path)
-                logger.info(f"Moved and renamed processed file to: {new_path}")
-                return True
-            else:
-                logger.error(f"Failed to send file contents to Kafka: {file_path}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Error processing file {file_path}: {e}")
-            return False
 
 
 class FileEventHandler(FileSystemEventHandler):
@@ -194,6 +100,7 @@ def main():
             logger.info("Observer stopped")
         
         observer.join()
+        kafka_handler.close()
         
     except Exception as e:
         logger.error(f"Error in main function: {e}")

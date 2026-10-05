@@ -1,0 +1,10 @@
+# The Istio CNI plugin. On OpenShift this is required (pods can't run the
+# NET_ADMIN init-container by default), so it must exist before workloads are
+# added to the mesh. Version tracks the control plane below.
+apiVersion: sailoperator.io/v1
+kind: IstioCNI
+metadata:
+  name: default
+spec:
+  namespace: istio-cni
+  version: v1.30.4

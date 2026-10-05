@@ -1,4 +1,3 @@
-from httpx import stream
 from pydantic import BaseModel, Field
 
 
@@ -58,4 +57,3 @@ class OuterWrapper(BaseModel):
 
 class OpportunityWrapper(BaseModel):
     content: str
-

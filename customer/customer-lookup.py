@@ -11,9 +11,6 @@ from models import StructuredObject
 import json
 import os
 import logging
-import psycopg2
-from psycopg2 import sql
-
 from pydantic import BaseModel, InstanceOf
 
 
@@ -30,6 +27,7 @@ DBUSER=os.getenv("CUSTOMER_DBUSER")
 DBPASSWORD=os.getenv("CUSTOMER_DBPASSWORD")
 DBHOST=os.getenv("CUSTOMER_DBHOST")
 DBPORT=os.getenv("CUSTOMER_DBPORT")
+CUSTOMER_LOOKUP_MODE=os.getenv("CUSTOMER_LOOKUP_MODE", "database").lower()
 
 
 
@@ -82,6 +80,9 @@ def log_dict_elements(d, prefix=""):
 # The meat and potatoes
 # -------------------------------------------------------
 def find_the_customer_by_contact_email(contact_email) -> CustomerDetails:
+    import psycopg2
+    from psycopg2 import sql
+
     logger.info(f"find_the_customer_by_contact_email: {contact_email}")
 
     connection = None
@@ -152,8 +153,8 @@ class MessageProcessor():
             bootstrap_servers=KAFKA_BROKER,
             value_deserializer=lambda x: json.loads(x.decode('utf-8')),            
             # auto_offset_reset='earliest', # debugging
-            auto_offset_reset='latest',
-            group_id='customer_lookup',
+            auto_offset_reset=os.getenv("KAFKA_AUTO_OFFSET_RESET", "latest"),
+            group_id=os.getenv("KAFKA_CUSTOMER_GROUP_ID", "customer_lookup"),
             enable_auto_commit=False
         )
 
@@ -201,6 +202,11 @@ class MessageProcessor():
                     logger.info(f"Converted to Pydantic Message: {message}")
                     logger.info(f"type: {type(message)}")
                     
+                    if CUSTOMER_LOOKUP_MODE == "passthrough":
+                        logger.info("Customer lookup passthrough mode enabled")
+                        self.producer.send(KAFKA_OUTPUT_TOPIC, message.model_dump())
+                        continue
+
                     contact_email_address=message.structured.email_address
                     logger.info(f"Contact email address: {contact_email_address}")
 

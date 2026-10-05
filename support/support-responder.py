@@ -12,10 +12,6 @@ from dotenv import load_dotenv
 from models import OuterWrapper, SupportResponse, StructuredObject
 import json
 import logging
-import psycopg2
-from pgvector.psycopg2 import register_vector
-from transformers import AutoTokenizer, AutoModel
-import torch
 from openai import OpenAI
 
 # Set up logging configuration
@@ -31,9 +27,9 @@ logging.getLogger("kafka.conn").setLevel(logging.WARNING)
 # Load env vars
 load_dotenv()
 
-API_KEY=os.getenv("SUPPORT_API_KEY")
-INFERENCE_SERVER_URL=os.getenv("SUPPORT_SERVER_URL")
-MODEL_NAME=os.getenv("SUPPORT_MODEL_NAME")
+API_KEY=os.getenv("SUPPORT_API_KEY") or os.getenv("API_KEY")
+INFERENCE_SERVER_URL=os.getenv("SUPPORT_SERVER_URL") or os.getenv("INFERENCE_SERVER_URL")
+MODEL_NAME=os.getenv("SUPPORT_MODEL_NAME") or os.getenv("MODEL_NAME")
 
 KAFKA_BROKER=os.getenv("KAFKA_BROKER")
 KAFKA_INPUT_TOPIC=os.getenv("KAFKA_SUPPORT_INPUT_TOPIC") 
@@ -46,6 +42,7 @@ DBPASSWORD=os.getenv("KBASE_DBPASSWORD")
 DBHOST=os.getenv("KBASE_DBHOST")
 DBPORT=os.getenv("KBASE_DBPORT")
 RAG_TABLE=os.getenv("KBASE_RAG_TABLE")
+SUPPORT_RAG_ENABLED=os.getenv("SUPPORT_RAG_ENABLED", "true").lower() == "true"
 
 MAX_CONTEXT_LENGTH=4000
 
@@ -63,10 +60,14 @@ llmclient = OpenAI(
     base_url=INFERENCE_SERVER_URL
     )
 
-# Load Sentence Transformer model (all-mpnet-base-v2)
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
-tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-mpnet-base-v2")
-model = AutoModel.from_pretrained("sentence-transformers/all-mpnet-base-v2")
+tokenizer = None
+embedding_model = None
+if SUPPORT_RAG_ENABLED:
+    from transformers import AutoTokenizer, AutoModel
+
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"
+    tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/all-mpnet-base-v2")
+    embedding_model = AutoModel.from_pretrained("sentence-transformers/all-mpnet-base-v2")
 
 # --------------------------------------------------------------
 # Handles each message, processes, sends the message on
@@ -77,7 +78,8 @@ class MessageProcessor():
             KAFKA_INPUT_TOPIC,
             bootstrap_servers=KAFKA_BROKER,
             value_deserializer=lambda x: json.loads(x.decode('utf-8')),
-            auto_offset_reset='earliest', # aids debugging
+            auto_offset_reset=os.getenv("KAFKA_AUTO_OFFSET_RESET", "earliest"),
+            group_id=os.getenv("KAFKA_SUPPORT_GROUP_ID"),
             # auto_offset_reset='latest',
             enable_auto_commit=False            
             # group_id='support_responder',            
@@ -88,13 +90,17 @@ class MessageProcessor():
             value_serializer=lambda x: json.dumps(x, default=str).encode('utf-8')
         )
 
-        self.connection = psycopg2.connect(
-            dbname=DBNAME,
-            user=DBUSER,
-            password=DBPASSWORD,
-            host=DBHOST,
-            port=DBPORT
-        )
+        self.connection = None
+        if SUPPORT_RAG_ENABLED:
+            import psycopg2
+
+            self.connection = psycopg2.connect(
+                dbname=DBNAME,
+                user=DBUSER,
+                password=DBPASSWORD,
+                host=DBHOST,
+                port=DBPORT
+            )
 
     def retrievecontext(self, message:OuterWrapper) -> OuterWrapper:
         return message
@@ -104,9 +110,11 @@ class MessageProcessor():
     # Function to convert string into embeddings
     # --------------------------------------------------------------
     def get_query_embedding(self, query):
+        import torch
+
         inputs = tokenizer(query, return_tensors="pt", truncation=True, padding=True)
         with torch.no_grad():
-            embeddings = model(**inputs).last_hidden_state.mean(dim=1)
+            embeddings = embedding_model(**inputs).last_hidden_state.mean(dim=1)
         # Ensure we return a 1-D array (flatten if needed)
         return embeddings.numpy().flatten()
 
@@ -115,6 +123,9 @@ class MessageProcessor():
     # Function to retrieve relevant documents
     # --------------------------------------------------------------
     def retrieve_documents(self, query, top_k=3):
+        if not SUPPORT_RAG_ENABLED:
+            return []
+
         query_embedding = self.get_query_embedding(query)
         cursor = self.connection.cursor()
         # Perform similarity search in PostgreSQL using pgvector
@@ -204,7 +215,10 @@ class MessageProcessor():
     def run(self):       
         try:
             logger.info("Starting message processor...")
-            register_vector(self.connection)
+            if SUPPORT_RAG_ENABLED:
+                from pgvector.psycopg2 import register_vector
+
+                register_vector(self.connection)
             
             for kafka_message in self.consumer:
                 logger.info(f"Before Processing message: {type(kafka_message)}")                

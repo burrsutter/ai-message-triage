@@ -1,0 +1,7 @@
+# Dedicated namespace for the Kafka cluster used by ai-message-triage.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: message-triage
+  labels:
+    app.kubernetes.io/part-of: ai-message-triage

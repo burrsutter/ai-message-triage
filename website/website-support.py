@@ -28,17 +28,17 @@ logging.getLogger("kafka.conn").setLevel(logging.WARNING)
 # Load env vars
 load_dotenv()
 
-API_KEY=os.getenv("WEBSITE_API_KEY")
-INFERENCE_SERVER_URL=os.getenv("WEBSITE_SERVER_URL")
-MODEL_NAME=os.getenv("WEBSITE_MODEL_NAME")
+API_KEY=os.getenv("WEBSITE_API_KEY") or os.getenv("API_KEY")
+INFERENCE_SERVER_URL=os.getenv("WEBSITE_SERVER_URL") or os.getenv("INFERENCE_SERVER_URL")
+MODEL_NAME=os.getenv("WEBSITE_MODEL_NAME") or os.getenv("MODEL_NAME")
 
 KAFKA_BROKER=os.getenv("KAFKA_BROKER")
 KAFKA_INPUT_TOPIC=os.getenv("KAFKA_WEBSITE_INPUT_TOPIC")
 KAFKA_OUTPUT_TOPIC=os.getenv("KAFKA_OUTFLOW_TOPIC")
 KAFKA_REVIEW_TOPIC=os.getenv("KAFKA_REVIEW_TOPIC")
 
-API_HOST = os.getenv("WEBSITE_API_HOST")
-API_PORT = int(os.getenv("WEBSITE_API_PORT"))
+API_HOST = os.getenv("WEBSITE_API_HOST", "127.0.0.1")
+API_PORT = int(os.getenv("WEBSITE_API_PORT", "8001"))
 
 logger.info(f"INFERENCE_SERVER_URL: {INFERENCE_SERVER_URL}")
 logger.info(f"MODEL_NAME: {MODEL_NAME}")
@@ -115,7 +115,8 @@ class MessageProcessor():
             bootstrap_servers=KAFKA_BROKER,
             value_deserializer=lambda x: json.loads(x.decode('utf-8')),
             # auto_offset_reset='earliest', # aids debugging
-            auto_offset_reset='latest',
+            auto_offset_reset=os.getenv("KAFKA_AUTO_OFFSET_RESET", "latest"),
+            group_id=os.getenv("KAFKA_WEBSITE_GROUP_ID"),
             enable_auto_commit=False            
             # group_id='support_responder',            
         )

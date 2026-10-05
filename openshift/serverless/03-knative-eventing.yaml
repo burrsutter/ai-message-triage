@@ -1,0 +1,13 @@
+# Knative Eventing = event routing (Brokers, Triggers, Sources, Channels).
+# Lives in the knative-eventing namespace; the operator reconciles it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: knative-eventing
+---
+apiVersion: operator.knative.dev/v1beta1
+kind: KnativeEventing
+metadata:
+  name: knative-eventing
+  namespace: knative-eventing
+spec: {}

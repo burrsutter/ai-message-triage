@@ -1,0 +1,20 @@
+# Installs the Red Hat AMQ Streams operator (productized Strimzi) cluster-wide.
+#
+# It is subscribed in the openshift-operators namespace, which already has the
+# built-in "global-operators" OperatorGroup (AllNamespaces install mode), so the
+# operator will watch and manage Kafka resources in every namespace, including
+# the "message-triage" namespace we create for this project.
+#
+# Channel "stable" currently resolves to amqstreams.v3.2.1-x on this cluster.
+# AMQ Streams 3.x is KRaft-only (no ZooKeeper) and requires KafkaNodePool CRs.
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: amq-streams
+  namespace: openshift-operators
+spec:
+  channel: stable
+  name: amq-streams
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic

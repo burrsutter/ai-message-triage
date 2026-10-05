@@ -1,0 +1,36 @@
+# KafkaNodePool defines the physical Kafka nodes (pods) and their storage.
+# AMQ Streams 3.x (KRaft) requires at least one node pool.
+#
+# For this dev/demo we use a SINGLE node that plays BOTH KRaft roles
+# (controller + broker). That matches the project's local setup, which uses
+# replication-factor 1 for every topic. Do NOT use a single node for production.
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaNodePool
+metadata:
+  name: kafka-dual-role
+  namespace: message-triage
+  labels:
+    # Must match the Kafka CR name in 04-kafka-cluster.yaml
+    strimzi.io/cluster: message-triage-kafka
+spec:
+  replicas: 1
+  roles:
+    - controller
+    - broker
+  storage:
+    type: jbod
+    volumes:
+      - id: 0
+        type: persistent-claim
+        size: 10Gi
+        # Uses the cluster default StorageClass (ocs-external-storagecluster-ceph-rbd).
+        # deleteClaim: true means the PVC is removed when the cluster is deleted.
+        deleteClaim: true
+        kraftMetadata: shared
+  resources:
+    requests:
+      memory: 1Gi
+      cpu: "500m"
+    limits:
+      memory: 2Gi
+      cpu: "1"
